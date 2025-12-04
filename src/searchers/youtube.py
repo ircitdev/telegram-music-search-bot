@@ -4,6 +4,7 @@ from typing import List
 from yt_dlp import YoutubeDL
 from src.models import Track
 from src.utils.logger import logger
+from src.config import settings
 
 
 class YouTubeSearcher:
@@ -58,6 +59,11 @@ class YouTubeSearcher:
                     if not entry:
                         continue
 
+                    # Filter by duration (skip tracks longer than MAX_DURATION)
+                    duration = entry.get('duration', 0) or 0
+                    if duration > settings.MAX_DURATION:
+                        continue
+
                     # Parse title (usually "Artist - Title" or just "Title")
                     title = entry.get('title', 'Unknown')
                     artist = "Unknown"
@@ -71,7 +77,7 @@ class YouTubeSearcher:
                         id=entry['id'],
                         title=title,
                         artist=artist,
-                        duration=entry.get('duration', 0),
+                        duration=duration,
                         url=f"https://youtube.com/watch?v={entry['id']}"
                     )
                     tracks.append(track)

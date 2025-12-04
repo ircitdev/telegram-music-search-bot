@@ -83,10 +83,6 @@ async def text_search_handler(message: Message):
             f"   ⏱️ <code>{track.formatted_duration}</code>\n\n"
         )
 
-    text += "👇 <b>Выбери номер трека (1-10):</b>"
-            f"    ⏱ <code>{track.formatted_duration}</code>\n\n"
-        )
-
     text += f"👇 <b>Выбери номер трека (1-{len(page_tracks)})</b>"
     if total_tracks > 10:
         text += f"\n📄 Страница 1/{(total_tracks + 9) // 10}"
