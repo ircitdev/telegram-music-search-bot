@@ -3,7 +3,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from src.utils.users import user_manager
+from src.database.repositories import user_repo
 from src.utils.logger import logger
 
 router = Router()
@@ -16,9 +16,9 @@ async def cmd_start(message: Message):
     username = message.from_user.username or ""
     first_name = message.from_user.first_name or ""
 
-    # Register user
-    is_new = user_manager.add_user(user_id, username, first_name)
-    logger.info(f"User {user_id} started bot (new: {is_new})")
+    # Register user in database
+    await user_repo.create_user(user_id, username, first_name)
+    logger.info(f"User {user_id} started bot")
 
     await message.answer(
         "🎵 <b>Добро пожаловать в UspMusicFinder Bot!</b>\n\n"
@@ -40,24 +40,26 @@ async def cmd_help(message: Message):
     await message.answer(
         "🎵 <b>UspMusicFinder Bot - Help</b>\n\n"
         
-        "<b>Как пользоваться:</b>\n"
+        "<b>🔍 Как пользоваться:</b>\n"
         "1️⃣ Отправь название песни или исполнителя\n"
         "2️⃣ Нажми кнопку номера трека (1-10)\n"
         "3️⃣ Получи MP3 файл с метаданными!\n\n"
         
-        "<b>Примеры поиска:</b>\n"
+        "<b>📝 Примеры поиска:</b>\n"
         "• Bohemian Rhapsody\n"
         "• Queen\n"
         "• The Beatles Help\n\n"
         
-        "<b>Команды:</b>\n"
-        "  /start - Начать работу с ботом\n"
+        "<b>⚡ Команды:</b>\n"
+        "  /start - Начать работу\n"
         "  /help - Эта справка\n"
-        "  /top - Популярные песни по странам\n\n"
+        "  /top - Популярные песни по странам 🔥\n"
+        "  /history - История поиска\n"
+        "  /favorites - Избранные песни\n\n"
         
-        "<b>Возможности:</b>\n"
+        "<b>✨ Возможности:</b>\n"
         "  🔍 Поиск по названию песни или исполнителю\n"
-        "  ⬇️ Скачивание MP3 высокого качества (192 kbps)\n"
+        "  ⬇️ Скачивание MP3 качество 192 kbps\n"
         "  📊 Просмотр популярных треков\n"
         "  🎯 Инлайн режим: <code>@UspMusicFinder_bot название</code>\n\n"
         

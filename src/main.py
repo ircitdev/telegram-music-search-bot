@@ -3,16 +3,20 @@ import asyncio
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from src.bot import bot, dp
-from src.handlers import start, search, callbacks, admin
+from src.handlers import start, search, callbacks, admin, history, favorites, top
 from src.utils.logger import logger
 from src.utils.cleanup import create_cleanup_task
+from src.database import db
 
 
 async def main():
     """Main function - startup the bot."""
     cleanup_task = None
-    
+
     try:
+        # Connect to database
+        await db.connect()
+
         # Setup FSM storage (in-memory)
         storage = MemoryStorage()
         dp.fsm.storage = storage
@@ -20,6 +24,9 @@ async def main():
         # Include all routers (order matters!)
         dp.include_router(admin.router)  # Admin first (higher priority)
         dp.include_router(start.router)
+        dp.include_router(top.router)  # TOP command
+        dp.include_router(history.router)
+        dp.include_router(favorites.router)
         dp.include_router(search.router)
         dp.include_router(callbacks.router)
 
@@ -49,7 +56,10 @@ async def main():
                 await cleanup_task
             except asyncio.CancelledError:
                 pass
-        
+
+        # Close database connection
+        await db.disconnect()
+
         await bot.session.close()
 
 

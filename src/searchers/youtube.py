@@ -15,7 +15,7 @@ class YouTubeSearcher:
             'quiet': True,
             'no_warnings': True,
             'extract_flat': True,
-            'default_search': 'ytsearch10',
+            'default_search': 'ytsearch20',  # Load 20 for pagination
         }
 
     async def search(self, query: str) -> List[Track]:
@@ -47,7 +47,7 @@ class YouTubeSearcher:
         """Synchronous YouTube search (runs in executor)."""
         try:
             with YoutubeDL(self.ydl_opts) as ydl:
-                result = ydl.extract_info(f"ytsearch10:{query}", download=False)
+                result = ydl.extract_info(f"ytsearch20:{query}", download=False)
 
                 if not result or 'entries' not in result:
                     logger.warning(f"No results found for: {query}")
@@ -77,7 +77,7 @@ class YouTubeSearcher:
                     tracks.append(track)
 
                 logger.info(f"Found {len(tracks)} tracks for: {query}")
-                return tracks[:10]
+                return tracks[:20]  # Return up to 20 for pagination
 
         except Exception as e:
             logger.error(f"YouTube search sync error: {e}")

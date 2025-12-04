@@ -6,7 +6,7 @@ from src.keyboards import create_track_keyboard
 from src.utils.cache import cache
 from src.utils.logger import logger
 from src.utils.rate_limiter import rate_limiter
-from src.utils.stats import bot_stats
+from src.database.repositories import user_repo
 
 router = Router()
 
@@ -56,29 +56,43 @@ async def text_search_handler(message: Message):
         logger.warning(f"No results found for query: {query}")
         return
 
-    # Record search in stats
-    bot_stats.record_search(user_id, username)
+    # Record search in database
+    await user_repo.increment_searches(user_id)
 
-    # Cache results for 10 minutes
+    # Cache all results for pagination (10 minutes)
     cache_key = f"search:{user_id}"
     cache.set(cache_key, tracks, ttl=600)
+    # Also cache query for display
+    cache.set(f"query:{user_id}", query, ttl=600)
     logger.debug(f"Cached {len(tracks)} results for user {user_id}")
 
-    # Format search results
-    text = f"🎵 <b>{query}</b>\n\n"
-    for i, track in enumerate(tracks, 1):
+    # Show first page (tracks 1-10)
+    page_tracks = tracks[:10]
+    total_tracks = len(tracks)
+
+    # Format search results with beautiful formatting
+    text = f"🎵 <b>Результаты поиска:</b> <code>{query}</code>\n"
+    text += f"<i>Найдено: {total_tracks} треков</i>\n\n"
+    
+    for i, track in enumerate(page_tracks, 1):
         # Icons for top 3 tracks
-        icon = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "▫️"
+        icon = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"<b>{i}</b>."
         text += (
-            f"{icon} <b>{i}.</b> {track.artist}\n"
-            f"    📝 {track.title}\n"
+            f"{icon} <b>{track.artist}</b>\n"
+            f"   🎤 <i>{track.title}</i>\n"
+            f"   ⏱️ <code>{track.formatted_duration}</code>\n\n"
+        )
+
+    text += "👇 <b>Выбери номер трека (1-10):</b>"
             f"    ⏱ <code>{track.formatted_duration}</code>\n\n"
         )
 
-    text += "👇 <b>Выбери номер трека (1-10)</b>"
+    text += f"👇 <b>Выбери номер трека (1-{len(page_tracks)})</b>"
+    if total_tracks > 10:
+        text += f"\n📄 Страница 1/{(total_tracks + 9) // 10}"
 
-    # Create inline keyboard
-    keyboard = create_track_keyboard(tracks)
+    # Create inline keyboard with pagination
+    keyboard = create_track_keyboard(page_tracks, page=0, total_tracks=total_tracks)
 
     await message.answer(text, reply_markup=keyboard)
-    logger.info(f"Shown {len(tracks)} results to user {user_id}")
+    logger.info(f"Shown {len(page_tracks)}/{total_tracks} results to user {user_id}")

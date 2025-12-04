@@ -1,4 +1,5 @@
 """Admin panel and commands."""
+from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import Command
@@ -7,9 +8,11 @@ from aiogram.fsm.state import State, StatesGroup
 
 from src.config import settings
 from src.utils.logger import logger
-from src.utils.stats import bot_stats
-from src.utils.users import user_manager
+from src.database.repositories import user_repo, download_repo, stats_repo
 from src.bot import bot
+
+# Track bot start time
+BOT_START_TIME = datetime.now()
 
 router = Router()
 
@@ -56,7 +59,29 @@ async def stats_command(message: Message):
         await message.answer("❌ Доступ запрещён")
         return
 
-    text = bot_stats.get_stats_text()
+    # Get stats from database
+    summary = await user_repo.get_stats_summary()
+    total_users = summary.get("total_users", 0)
+    total_searches = summary.get("total_searches", 0)
+    total_downloads = summary.get("total_downloads", 0)
+    active_users = await user_repo.get_active_users(minutes=60)
+
+    # Calculate uptime
+    uptime = datetime.now() - BOT_START_TIME
+    hours, remainder = divmod(int(uptime.total_seconds()), 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    text = (
+        "📊 <b>СТАТИСТИКА БОТА</b>\n\n"
+        f"⏱ <b>Время работы:</b> {hours}ч {minutes}м {seconds}с\n\n"
+        f"👥 <b>Пользователи:</b>\n"
+        f"  • Всего: {total_users}\n"
+        f"  • Активных (60 мин): {active_users}\n\n"
+        f"📈 <b>Активность:</b>\n"
+        f"  • Поисков: {total_searches}\n"
+        f"  • Скачиваний: {total_downloads}\n"
+    )
+
     await message.answer(text)
     logger.info(f"Stats viewed by admin {message.from_user.id}")
 
@@ -68,8 +93,8 @@ async def users_command(message: Message):
         await message.answer("❌ Доступ запрещён")
         return
 
-    count = bot_stats.get_user_count()
-    active = bot_stats.get_active_users(minutes=60)
+    count = await user_repo.get_user_count()
+    active = await user_repo.get_active_users(minutes=60)
 
     text = (
         "👥 <b>ПОЛЬЗОВАТЕЛИ</b>\n\n"
@@ -88,7 +113,19 @@ async def top_command(message: Message):
         await message.answer("❌ Доступ запрещён")
         return
 
-    text = bot_stats.get_top_users_text(limit=10)
+    top_users = await user_repo.get_top_users(limit=10)
+
+    if not top_users:
+        await message.answer("📊 Пока нет данных о пользователях")
+        return
+
+    text = "🏆 <b>ТОП 10 ПОЛЬЗОВАТЕЛЕЙ</b>\n\n"
+    for i, user in enumerate(top_users, 1):
+        medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+        username = f"@{user['username']}" if user.get('username') else user.get('first_name', 'Unknown')
+        text += f"{medal} {username}\n"
+        text += f"    🔍 {user['searches']} | ⬇️ {user['downloads']}\n\n"
+
     await message.answer(text)
     logger.info(f"Top users viewed by admin {message.from_user.id}")
 
@@ -101,7 +138,7 @@ async def user_stats_command(message: Message):
         return
 
     args = message.text.split(maxsplit=1)
-    
+
     if len(args) < 2:
         await message.answer(
             "❌ Укажи ID пользователя\n\n"
@@ -110,26 +147,51 @@ async def user_stats_command(message: Message):
         return
 
     try:
-        user_id = int(args[1])
+        target_user_id = int(args[1])
     except ValueError:
         await message.answer("❌ ID должен быть числом")
         return
 
-    text = bot_stats.get_user_stats(user_id)
+    user = await user_repo.get_user(target_user_id)
+
+    if not user:
+        await message.answer(f"❌ Пользователь {target_user_id} не найден")
+        return
+
+    username = f"@{user['username']}" if user.get('username') else "не указан"
+    first_name = user.get('first_name', 'не указано')
+    is_premium = "✅ Да" if user.get('is_premium') else "❌ Нет"
+
+    text = (
+        f"👤 <b>СТАТИСТИКА ПОЛЬЗОВАТЕЛЯ</b>\n\n"
+        f"🆔 ID: <code>{target_user_id}</code>\n"
+        f"👤 Имя: {first_name}\n"
+        f"📛 Username: {username}\n"
+        f"⭐ Премиум: {is_premium}\n\n"
+        f"📊 <b>Активность:</b>\n"
+        f"  🔍 Поисков: {user.get('searches', 0)}\n"
+        f"  ⬇️ Скачиваний: {user.get('downloads', 0)}\n"
+        f"  🎁 Бонусов: {user.get('bonus_downloads', 0)}\n\n"
+        f"📅 Первый визит: {user.get('created_at', 'неизвестно')}\n"
+        f"🕐 Последний визит: {user.get('last_seen', 'неизвестно')}"
+    )
+
     await message.answer(text)
-    logger.info(f"User stats viewed by admin {message.from_user.id}: user {user_id}")
+    logger.info(f"User stats viewed by admin {message.from_user.id}: user {target_user_id}")
 
 
 @router.message(Command("reset_stats"))
 async def reset_stats_command(message: Message):
-    """Reset all statistics."""
+    """Reset all statistics - disabled for safety."""
     if not is_admin(message.from_user.id):
         await message.answer("❌ Доступ запрещён")
         return
 
-    bot_stats.reset()
-    await message.answer("✅ Статистика сброшена")
-    logger.warning(f"Stats reset by admin {message.from_user.id}")
+    await message.answer(
+        "⚠️ Сброс статистики отключён для безопасности данных.\n\n"
+        "Данные хранятся в SQLite базе данных."
+    )
+    logger.warning(f"Stats reset attempted by admin {message.from_user.id}")
 
 
 @router.message(Command("help_admin"))
@@ -169,7 +231,7 @@ async def mailing_command(message: Message, state: FSMContext):
         await message.answer("❌ Доступ запрещён")
         return
 
-    user_count = user_manager.get_user_count()
+    user_count = await user_repo.get_user_count()
 
     text = (
         f"📢 <b>МАССОВАЯ РАССЫЛКА</b>\n\n"
@@ -202,7 +264,7 @@ async def mailing_message_handler(message: Message, state: FSMContext):
         return
 
     # Get all users
-    users = user_manager.get_all_users()
+    users = await user_repo.get_all_user_ids()
     total = len(users)
 
     if total == 0:
