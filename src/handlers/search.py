@@ -6,6 +6,7 @@ from src.keyboards import create_track_keyboard
 from src.utils.cache import cache
 from src.utils.logger import logger
 from src.utils.rate_limiter import rate_limiter
+from src.utils.stats import bot_stats
 
 router = Router()
 
@@ -24,6 +25,7 @@ async def text_search_handler(message: Message):
         return
 
     user_id = message.from_user.id
+    username = message.from_user.username or ""
     logger.info(f"User {user_id} searched: {query}")
 
     # Check rate limit
@@ -53,6 +55,9 @@ async def text_search_handler(message: Message):
         )
         logger.warning(f"No results found for query: {query}")
         return
+
+    # Record search in stats
+    bot_stats.record_search(user_id, username)
 
     # Cache results for 10 minutes
     cache_key = f"search:{user_id}"

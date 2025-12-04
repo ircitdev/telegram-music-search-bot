@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
     BOT_USERNAME: str = "UspMusicFinder_bot"
 
+    # Admin IDs (comma-separated in .env)
+    ADMIN_IDS: list = []
+
     # Directories
     TEMP_DIR: str = "./data/temp"
     CACHE_DIR: str = "./data/cache"
@@ -35,6 +38,11 @@ class Settings(BaseSettings):
     # APIs (optional)
     LASTFM_API_KEY: str = ""
     AUDD_API_KEY: str = ""
+
+    def model_post_init(self, __context):
+        """Convert ADMIN_IDS from string to list if needed."""
+        if isinstance(self.ADMIN_IDS, str):
+            self.ADMIN_IDS = [int(x.strip()) for x in self.ADMIN_IDS.split(",") if x.strip()]
 
     class Config:
         env_file = ".env"

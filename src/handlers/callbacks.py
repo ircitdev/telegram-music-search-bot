@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery, FSInputFile
 from src.downloaders.youtube_dl import youtube_downloader
 from src.utils.cache import cache
 from src.utils.logger import logger
+from src.utils.stats import bot_stats
 
 router = Router()
 
@@ -21,6 +22,7 @@ async def track_callback_handler(callback: CallbackQuery):
         # Parse track number from callback data
         track_num = int(callback.data.split(":")[1])
         user_id = callback.from_user.id
+        username = callback.from_user.username or ""
 
         logger.info(f"User {user_id} selected track #{track_num}")
 
@@ -91,6 +93,9 @@ async def track_callback_handler(callback: CallbackQuery):
                 title=track.title,
                 duration=track.duration
             )
+
+            # Record download in stats
+            bot_stats.record_download(user_id, username)
 
             # Delete "loading..." message
             try:

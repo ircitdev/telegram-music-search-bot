@@ -1,7 +1,7 @@
 ﻿"""Main application entry point."""
 import asyncio
 from src.bot import bot, dp
-from src.handlers import start, search, callbacks
+from src.handlers import start, search, callbacks, admin
 from src.utils.logger import logger
 from src.utils.cleanup import create_cleanup_task
 
@@ -15,6 +15,7 @@ async def main():
         dp.include_router(start.router)
         dp.include_router(search.router)
         dp.include_router(callbacks.router)
+        dp.include_router(admin.router)
 
         # Delete webhook for polling mode
         await bot.delete_webhook(drop_pending_updates=True)
