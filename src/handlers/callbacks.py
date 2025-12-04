@@ -94,6 +94,19 @@ async def track_callback_handler(callback: CallbackQuery):
                 duration=track.duration
             )
 
+            # Send promotional message
+            promo_text = (
+                "🎵 <b>Найди любую музыку за секунды!</b>\n\n"
+                "Этот трек скачан с помощью бота @UspMusicFinder_bot\n\n"
+                "✨ Поищи свою любимую музыку:\n"
+                "/search [название трека]\n\n"
+                "👉 <a href=\"https://t.me/UspMusicFinder_bot\">Открыть бота</a>"
+            )
+            try:
+                await callback.message.answer(promo_text)
+            except Exception as e:
+                logger.debug(f"Could not send promotional message: {e}")
+
             # Record download in stats
             bot_stats.record_download(user_id, username)
 
