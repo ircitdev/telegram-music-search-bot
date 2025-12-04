@@ -1,5 +1,7 @@
 ﻿"""Main application entry point."""
 import asyncio
+from aiogram.fsm.storage.memory import MemoryStorage
+
 from src.bot import bot, dp
 from src.handlers import start, search, callbacks, admin
 from src.utils.logger import logger
@@ -11,11 +13,15 @@ async def main():
     cleanup_task = None
     
     try:
-        # Include all routers
+        # Setup FSM storage (in-memory)
+        storage = MemoryStorage()
+        dp.fsm.storage = storage
+
+        # Include all routers (order matters!)
+        dp.include_router(admin.router)  # Admin first (higher priority)
         dp.include_router(start.router)
         dp.include_router(search.router)
         dp.include_router(callbacks.router)
-        dp.include_router(admin.router)
 
         # Delete webhook for polling mode
         await bot.delete_webhook(drop_pending_updates=True)

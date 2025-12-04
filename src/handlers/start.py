@@ -3,12 +3,23 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from src.utils.users import user_manager
+from src.utils.logger import logger
+
 router = Router()
 
 
 @router.message(Command("start"))
 async def cmd_start(message: Message):
     """Handle /start command."""
+    user_id = message.from_user.id
+    username = message.from_user.username or ""
+    first_name = message.from_user.first_name or ""
+
+    # Register user
+    is_new = user_manager.add_user(user_id, username, first_name)
+    logger.info(f"User {user_id} started bot (new: {is_new})")
+
     await message.answer(
         "🎵 <b>Добро пожаловать в UspMusicFinder Bot!</b>\n\n"
         "Я помогу тебе найти и скачать музыку с YouTube Music.\n\n"

@@ -1,6 +1,7 @@
 """Configuration module - loads settings from .env file."""
 from pydantic_settings import BaseSettings
 from pathlib import Path
+from typing import List
 
 
 class Settings(BaseSettings):
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     BOT_USERNAME: str = "UspMusicFinder_bot"
 
     # Admin IDs (comma-separated in .env)
-    ADMIN_IDS: list = []
+    ADMIN_IDS: str = ""
 
     # Directories
     TEMP_DIR: str = "./data/temp"
@@ -39,14 +40,23 @@ class Settings(BaseSettings):
     LASTFM_API_KEY: str = ""
     AUDD_API_KEY: str = ""
 
-    def model_post_init(self, __context):
-        """Convert ADMIN_IDS from string to list if needed."""
-        if isinstance(self.ADMIN_IDS, str):
-            self.ADMIN_IDS = [int(x.strip()) for x in self.ADMIN_IDS.split(",") if x.strip()]
+    def get_admin_ids(self) -> List[int]:
+        """Get parsed admin IDs."""
+        if not self.ADMIN_IDS:
+            return []
+        return [int(x.strip()) for x in str(self.ADMIN_IDS).split(',') if x.strip()]
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+
+
+settings = Settings()
+
+# Create necessary directories
+Path(settings.TEMP_DIR).mkdir(parents=True, exist_ok=True)
+Path(settings.CACHE_DIR).mkdir(parents=True, exist_ok=True)
+Path(settings.LOGS_DIR).mkdir(parents=True, exist_ok=True)
 
 
 settings = Settings()
