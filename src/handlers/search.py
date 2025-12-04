@@ -5,6 +5,7 @@ from src.searchers.youtube import youtube_searcher
 from src.keyboards import create_track_keyboard
 from src.utils.cache import cache
 from src.utils.logger import logger
+from src.utils.rate_limiter import rate_limiter
 
 router = Router()
 
@@ -24,6 +25,17 @@ async def text_search_handler(message: Message):
 
     user_id = message.from_user.id
     logger.info(f"User {user_id} searched: {query}")
+
+    # Check rate limit
+    allowed, wait_seconds = rate_limiter.is_allowed(user_id)
+    if not allowed:
+        logger.warning(f"Rate limit exceeded for user {user_id}: wait {wait_seconds}s")
+        await message.answer(
+            f"⏳ <b>Слишком много запросов</b>\n\n"
+            f"Пожалуйста, подожди {wait_seconds} секунд\n\n"
+            f"<i>Лимит: {rate_limiter.max_requests} поисков в минуту</i>"
+        )
+        return
 
     # Show typing action
     await message.bot.send_chat_action(message.chat.id, "typing")

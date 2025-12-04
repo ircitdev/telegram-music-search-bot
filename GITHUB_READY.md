@@ -61,7 +61,7 @@ git add .
 git commit -m "Day 1-4 MVP: YouTube search, caching, inline keyboards"
 
 # 5. Измени удаленный URL на свой GitHub (если нужно)
-git remote set-url origin https://github.com/YOUR_USERNAME/UspMusicFinder.git
+git remote set-url origin https://github.com/ircitdev/UspMusicFinder.git
 
 # 6. Загрузи на GitHub
 git push origin main
@@ -74,7 +74,7 @@ git push origin main
 git init
 
 # 2. Добавить удаленный репозиторий
-git remote add origin https://github.com/YOUR_USERNAME/UspMusicFinder.git
+git remote add origin https://github.com/ircitdev/UspMusicFinder.git
 
 # 3. Добавить все файлы
 git add .
@@ -89,7 +89,7 @@ git branch -M main
 git push -u origin main
 ```
 
-**Замени `YOUR_USERNAME` на свое имя пользователя GitHub!**
+**Замени `ircitdev` на свое имя пользователя GitHub!**
 
 ---
 
@@ -234,7 +234,7 @@ git push origin main
 ## 📞 Контакты
 
 - **Bot:** [@UspMusicFinder_bot](https://t.me/UspMusicFinder_bot)
-- **GitHub:** <https://github.com/YOUR_USERNAME/UspMusicFinder>
+- **GitHub:** <https://github.com/ircitdev/UspMusicFinder>
 - **Issues:** Создавай issues в GitHub
 
 ---
