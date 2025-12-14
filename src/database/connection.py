@@ -102,6 +102,19 @@ class Database:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
 
+            -- Referrals (detailed tracking)
+            CREATE TABLE IF NOT EXISTS referrals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                referrer_id INTEGER NOT NULL,
+                referred_id INTEGER NOT NULL,
+                is_active INTEGER DEFAULT 0,
+                first_download_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (referrer_id) REFERENCES users(id),
+                FOREIGN KEY (referred_id) REFERENCES users(id),
+                UNIQUE(referrer_id, referred_id)
+            );
+
             -- Indexes for performance
             CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id);
             CREATE INDEX IF NOT EXISTS idx_downloads_date ON downloads(downloaded_at);
@@ -111,6 +124,8 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_track_stats_count
                 ON track_stats(download_count DESC);
             CREATE INDEX IF NOT EXISTS idx_users_referral ON users(referral_code);
+            CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);
+            CREATE INDEX IF NOT EXISTS idx_referrals_referred ON referrals(referred_id);
         """)
         await self.connection.commit()
 

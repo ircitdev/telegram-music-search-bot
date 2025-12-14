@@ -1,5 +1,5 @@
 """Admin panel and commands."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import Command
@@ -43,6 +43,7 @@ async def admin_command(message: Message):
         "👥 /users - Количество пользователей\n"
         "🏆 /top - ТОП 10 пользователей\n"
         "👤 /user_stats - Статистика пользователя\n"
+        "⭐ /setpremium - Выдать премиум\n"
         "🔄 /reset_stats - Сбросить статистику\n"
         "📢 /mailing - Массовая рассылка\n"
         "📝 /help_admin - Справка по командам\n"
@@ -215,6 +216,10 @@ async def help_admin_command(message: Message):
         "<b>/top</b> - ТОП 10 пользователей по скачиваниям\n\n"
         "<b>/user_stats &lt;ID&gt;</b> - Статистика пользователя:\n"
         "  /user_stats 123456789\n\n"
+        "<b>/setpremium &lt;ID&gt; [дни]</b> - Выдать премиум:\n"
+        "  /setpremium 123456789 - 30 дней (по умолчанию)\n"
+        "  /setpremium 123456789 90 - на 90 дней\n"
+        "  /setpremium 123456789 0 - забрать премиум\n\n"
         "<b>/mailing</b> - Массовая рассылка сообщений всем пользователям\n\n"
         "<b>/reset_stats</b> - Сбросить всю статистику\n\n"
         "<b>/help_admin</b> - Эта справка\n"
@@ -306,3 +311,98 @@ async def mailing_message_handler(message: Message, state: FSMContext):
     logger.info(f"Mailing completed: sent {sent}/{total} by admin {message.from_user.id}")
 
     await state.clear()
+
+
+@router.message(Command("setpremium"))
+async def setpremium_command(message: Message):
+    """Set premium status for a user."""
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Доступ запрещён")
+        return
+
+    args = message.text.split(maxsplit=2)
+
+    if len(args) < 3:
+        await message.answer(
+            "❌ Неверный формат команды\n\n"
+            "<b>Использование:</b>\n"
+            "<code>/setpremium &lt;user_id&gt; &lt;days&gt;</code>\n\n"
+            "<b>Примеры:</b>\n"
+            "• <code>/setpremium 123456789 30</code> - премиум на 30 дней\n"
+            "• <code>/setpremium 123456789 365</code> - премиум на год\n"
+            "• <code>/setpremium 123456789 0</code> - отменить премиум"
+        )
+        return
+
+    try:
+        target_user_id = int(args[1])
+        days = int(args[2])
+    except ValueError:
+        await message.answer("❌ ID и количество дней должны быть числами")
+        return
+
+    # Get or create user
+    user = await user_repo.get_user(target_user_id)
+
+    if not user:
+        await message.answer(
+            f"❌ Пользователь {target_user_id} не найден в базе.\n\n"
+            f"Пользователь должен хотя бы раз запустить бота командой /start"
+        )
+        return
+
+    if days == 0:
+        # Remove premium
+        await user_repo.set_premium(target_user_id, is_premium=False, premium_until=None)
+
+        username = f"@{user.get('username')}" if user.get('username') else user.get('first_name', 'Unknown')
+
+        await message.answer(
+            f"✅ <b>Премиум отменён</b>\n\n"
+            f"👤 Пользователь: {username}\n"
+            f"🆔 ID: <code>{target_user_id}</code>\n"
+            f"⭐ Статус: Бесплатный"
+        )
+
+        # Notify user
+        try:
+            await bot.send_message(
+                target_user_id,
+                "⚠️ Твоя премиум подписка была отменена.\n\n"
+                "Теперь действует лимит: 10 треков в день."
+            )
+        except Exception:
+            pass
+
+    else:
+        # Set premium
+        premium_until = datetime.now() + timedelta(days=days)
+        await user_repo.set_premium(target_user_id, is_premium=True, premium_until=premium_until)
+
+        username = f"@{user.get('username')}" if user.get('username') else user.get('first_name', 'Unknown')
+
+        await message.answer(
+            f"✅ <b>Премиум выдан</b>\n\n"
+            f"👤 Пользователь: {username}\n"
+            f"🆔 ID: <code>{target_user_id}</code>\n"
+            f"⭐ Статус: Премиум\n"
+            f"📅 Срок: {days} дней\n"
+            f"⏰ До: {premium_until.strftime('%Y-%m-%d %H:%M')}"
+        )
+
+        # Notify user
+        try:
+            await bot.send_message(
+                target_user_id,
+                f"🎉 <b>Поздравляем!</b>\n\n"
+                f"Тебе выдан премиум статус на {days} дней!\n\n"
+                f"⭐ <b>Преимущества:</b>\n"
+                f"• ♾ Безлимитные скачивания\n"
+                f"• 🚀 Приоритет в очереди\n"
+                f"• ❤️ Избранные треки\n\n"
+                f"Действует до: {premium_until.strftime('%d.%m.%Y %H:%M')}"
+            )
+        except Exception:
+            pass
+
+    logger.info(f"Premium status changed by admin {message.from_user.id}: user {target_user_id}, days {days}")

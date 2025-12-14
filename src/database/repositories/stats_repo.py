@@ -29,7 +29,7 @@ class StatsRepository:
 
     async def get_top_tracks(
         self,
-        limit: int = 10,
+        limit: int = 20,
         period: str = "all"
     ) -> List[Dict[str, Any]]:
         """
@@ -39,22 +39,40 @@ class StatsRepository:
             limit: Number of tracks to return
             period: "day", "week", "month", or "all"
         """
-        if period == "day":
-            date_filter = "AND last_downloaded > datetime('now', '-1 day')"
-        elif period == "week":
-            date_filter = "AND last_downloaded > datetime('now', '-7 days')"
-        elif period == "month":
-            date_filter = "AND last_downloaded > datetime('now', '-30 days')"
+        if period == "all":
+            # Get from track_stats (all time)
+            rows = await db.fetchall("""
+                SELECT track_id, title, artist, download_count, last_downloaded
+                FROM track_stats
+                ORDER BY download_count DESC
+                LIMIT ?
+            """, (limit,))
         else:
-            date_filter = ""
+            # Count from downloads table for specific period
+            if period == "day":
+                date_filter = "datetime('now', '-1 day')"
+            elif period == "week":
+                date_filter = "datetime('now', '-7 days')"
+            elif period == "month":
+                date_filter = "datetime('now', '-30 days')"
+            else:
+                date_filter = "datetime('now', '-1 day')"
 
-        rows = await db.fetchall(f"""
-            SELECT track_id, title, artist, download_count, last_downloaded
-            FROM track_stats
-            WHERE 1=1 {date_filter}
-            ORDER BY download_count DESC
-            LIMIT ?
-        """, (limit,))
+            rows = await db.fetchall(f"""
+                SELECT
+                    track_id,
+                    title,
+                    artist,
+                    duration,
+                    COUNT(*) as download_count,
+                    MAX(created_at) as last_downloaded
+                FROM downloads
+                WHERE created_at > {date_filter}
+                GROUP BY track_id
+                ORDER BY download_count DESC
+                LIMIT ?
+            """, (limit,))
+
         return [dict(row) for row in rows]
 
     async def get_track_stats(self, track_id: str) -> Dict[str, Any]:
@@ -100,6 +118,17 @@ class StatsRepository:
         """Get count of unique tracks downloaded."""
         row = await db.fetchone("SELECT COUNT(*) as cnt FROM track_stats")
         return row["cnt"] if row else 0
+
+    async def get_tracks_by_artist(self, artist: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get popular tracks by specific artist."""
+        rows = await db.fetchall("""
+            SELECT track_id, title, artist, download_count, last_downloaded
+            FROM track_stats
+            WHERE artist LIKE ?
+            ORDER BY download_count DESC
+            LIMIT ?
+        """, (f"%{artist}%", limit))
+        return [dict(row) for row in rows]
 
 
 # Global instance

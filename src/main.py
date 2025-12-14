@@ -3,7 +3,7 @@ import asyncio
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from src.bot import bot, dp
-from src.handlers import start, search, callbacks, admin, history, favorites, top
+from src.handlers import start, search, callbacks, admin, history, favorites, top, referral, recommendations
 from src.utils.logger import logger
 from src.utils.cleanup import create_cleanup_task
 from src.database import db
@@ -25,6 +25,8 @@ async def main():
         dp.include_router(admin.router)  # Admin first (higher priority)
         dp.include_router(start.router)
         dp.include_router(top.router)  # TOP command
+        dp.include_router(referral.router)  # Referral system
+        dp.include_router(recommendations.router)  # Recommendations
         dp.include_router(history.router)
         dp.include_router(favorites.router)
         dp.include_router(search.router)

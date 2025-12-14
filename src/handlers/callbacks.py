@@ -37,6 +37,151 @@ async def check_download_limit(user_id: int) -> tuple[bool, int, int]:
 
     return False, 0, 0
 
+
+async def download_and_send_track(callback: CallbackQuery, track):
+    """
+    Download and send track to user.
+
+    This function is reusable for both search results and top tracks.
+    """
+    user_id = callback.from_user.id
+
+    # Check download limit
+    can_download, remaining, bonus = await check_download_limit(user_id)
+
+    if not can_download:
+        await callback.answer(
+            f"❌ Лимит исчерпан!\n\n"
+            f"Бесплатно: {settings.FREE_DAILY_LIMIT} треков/день.\n"
+            f"Лимит обновится в полночь.\n\n"
+            f"⭐ /premium - безлимитный доступ",
+            show_alert=True
+        )
+        logger.info(f"User {user_id} hit download limit")
+        return
+
+    logger.info(
+        f"Downloading track for user {user_id}: "
+        f"{track.artist} - {track.title}"
+    )
+
+    # Show loading message
+    loading_text = (
+        f"⏳ <b>Загрузка трека...</b>\n\n"
+        f"🎵 <b>{track.title}</b>\n"
+        f"👤 <i>{track.artist}</i>\n"
+        f"⏱️ <code>{track.formatted_duration}</code>\n\n"
+        f"<code>[████░░░░░░░░░░░░░░] 20%</code>"
+    )
+
+    # Edit or send new message
+    try:
+        await callback.message.edit_text(loading_text)
+    except:
+        await callback.message.answer(loading_text)
+
+    # Download
+    try:
+        file_path = await youtube_downloader.download(track.id)
+    except Exception as e:
+        logger.error(
+            f"Download failed for user {user_id}, track {track.id}: {e}"
+        )
+        error_msg = str(e)
+
+        # More detailed error messages
+        if "too large" in error_msg.lower():
+            error_text = (
+                "❌ <b>Файл слишком большой</b>\n\n"
+                f"Максимальный размер: 50 MB\n"
+                f"Попробуй более короткий трек"
+            )
+        elif "not available" in error_msg.lower() or "unavailable" in error_msg.lower():
+            error_text = (
+                "❌ <b>Трек недоступен</b>\n\n"
+                f"Видео могло быть удалено или закрыто.\n"
+                f"Попробуй другой трек"
+            )
+        else:
+            error_text = (
+                "❌ <b>Ошибка при скачивании</b>\n\n"
+                f"Трек может быть недоступен.\n"
+                f"Попробуй другой трек"
+            )
+
+        try:
+            await callback.message.edit_text(error_text)
+        except:
+            await callback.message.answer(error_text)
+        await callback.answer()
+        return
+
+    # Send audio to user
+    try:
+        logger.info(f"Sending audio to user {user_id}: {file_path}")
+
+        audio_file = FSInputFile(file_path)
+
+        await callback.message.answer_audio(
+            audio=audio_file,
+            performer=track.artist,
+            title=track.title,
+            duration=track.duration,
+            caption="🎵 Любая музыка за секунды @UspMusicFinder_bot"
+        )
+
+        # Record download in database
+        await download_repo.add_download(
+            user_id=user_id,
+            track_id=track.id,
+            title=track.title,
+            artist=track.artist,
+            duration=track.duration
+        )
+
+        # Record in stats
+        await stats_repo.record_download(
+            track_id=track.id,
+            title=track.title,
+            artist=track.artist
+        )
+
+        # Use bonus if needed
+        if bonus > 0:
+            await user_repo.use_bonus_download(user_id)
+            logger.info(f"Used bonus download for user {user_id}")
+
+        # Delete loading message
+        try:
+            await callback.message.delete()
+        except:
+            pass
+
+        await callback.answer("✅ Готово!")
+        logger.info(f"Audio sent successfully to user {user_id}")
+
+    except Exception as e:
+        logger.error(f"Error sending audio: {e}")
+        error_text = (
+            "❌ <b>Ошибка при отправке</b>\n\n"
+            f"Попробуй скачать другой трек"
+        )
+        try:
+            await callback.message.edit_text(error_text)
+        except:
+            await callback.message.answer(error_text)
+        await callback.answer()
+
+    finally:
+        # Clean up file
+        if 'file_path' in locals() and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                logger.debug(f"Cleaned up file: {file_path}")
+            except:
+                pass
+
+
 router = Router()
 
 

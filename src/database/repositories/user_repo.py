@@ -21,22 +21,35 @@ class UserRepository:
         self,
         user_id: int,
         username: str = None,
-        first_name: str = None
+        first_name: str = None,
+        referrer_id: int = None
     ) -> bool:
-        """Create new user or update existing."""
+        """Create new user or update existing. Returns True if user is new."""
         referral_code = secrets.token_urlsafe(8)
 
         try:
+            # Check if user exists
+            existing = await self.get_user(user_id)
+            is_new = existing is None
+
             await db.execute("""
-                INSERT INTO users (id, username, first_name, referral_code, last_seen)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO users (id, username, first_name, referral_code, referred_by, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     username = excluded.username,
                     first_name = excluded.first_name,
                     last_seen = excluded.last_seen
-            """, (user_id, username, first_name, referral_code, datetime.now()))
+            """, (user_id, username, first_name, referral_code, referrer_id, datetime.now()))
+
+            # Create referral relationship if new user and has referrer
+            if is_new and referrer_id and referrer_id != user_id:
+                await db.execute("""
+                    INSERT INTO referrals (referrer_id, referred_id)
+                    VALUES (?, ?)
+                """, (referrer_id, user_id))
+
             await db.commit()
-            return True
+            return is_new
         except Exception as e:
             logger.error(f"Error creating user {user_id}: {e}")
             return False
@@ -158,6 +171,14 @@ class UserRepository:
         """Get count of users referred by this user."""
         row = await db.fetchone(
             "SELECT COUNT(*) as cnt FROM users WHERE referred_by = ?",
+            (user_id,)
+        )
+        return row["cnt"] if row else 0
+
+    async def get_active_referral_count(self, user_id: int) -> int:
+        """Get count of active referrals (those who made downloads)."""
+        row = await db.fetchone(
+            "SELECT COUNT(*) as cnt FROM referrals WHERE referrer_id = ? AND is_active = 1",
             (user_id,)
         )
         return row["cnt"] if row else 0
