@@ -16,23 +16,15 @@ async def cmd_start(message: Message):
     username = message.from_user.username or ""
     first_name = message.from_user.first_name or ""
 
-    # Parse deep link parameter from /start
+    # Parse referral code from /start ref_USER_ID
     referrer_id = None
-    shared_track_id = None
-
     if message.text and len(message.text.split()) > 1:
         param = message.text.split()[1]
-
-        # Check if it's a referral link
         if param.startswith("ref_"):
             try:
                 referrer_id = int(param.replace("ref_", ""))
             except:
                 pass
-
-        # Check if it's a shared track link
-        elif param.startswith("track_"):
-            shared_track_id = param.replace("track_", "")
 
     # Register user in database
     is_new = await user_repo.create_user(user_id, username, first_name, referrer_id)
@@ -53,29 +45,6 @@ async def cmd_start(message: Message):
         logger.info(f"User {user_id} registered via referral from {referrer_id}")
 
     logger.info(f"User {user_id} started bot")
-
-    # If user came via shared track link, initiate download
-    if shared_track_id:
-        await message.answer(
-            "🎵 Сейчас скачаю этот трек для тебя!\n\n"
-            "Один момент..."
-        )
-
-        # Import here to avoid circular dependency
-        from src.searchers.youtube import youtube_searcher
-        from src.handlers.callbacks import download_and_send_track_by_id
-
-        try:
-            # Try to download the shared track
-            await download_and_send_track_by_id(message, shared_track_id)
-        except Exception as e:
-            logger.error(f"Failed to download shared track {shared_track_id}: {e}")
-            await message.answer(
-                "❌ Не удалось скачать этот трек.\n\n"
-                "Попробуй найти его через поиск!"
-            )
-
-        return
 
     await message.answer(
         "🎵 <b>Добро пожаловать в UspMusicFinder Bot!</b>\n\n"

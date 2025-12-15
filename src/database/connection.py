@@ -129,6 +129,41 @@ class Database:
         """)
         await self.connection.commit()
 
+        # Add new columns if not exist (migrations)
+        await self._run_migrations()
+
+    async def _run_migrations(self):
+        """Run database migrations for new columns."""
+        # Check and add recognize_count column
+        try:
+            await self.connection.execute(
+                "ALTER TABLE users ADD COLUMN recognize_count INTEGER DEFAULT 0"
+            )
+            await self.connection.commit()
+            logger.info("Added recognize_count column")
+        except Exception:
+            pass  # Column already exists
+
+        # Check and add last_recognize_date column
+        try:
+            await self.connection.execute(
+                "ALTER TABLE users ADD COLUMN last_recognize_date TEXT"
+            )
+            await self.connection.commit()
+            logger.info("Added last_recognize_date column")
+        except Exception:
+            pass  # Column already exists
+
+        # Add payload column to payments if not exists
+        try:
+            await self.connection.execute(
+                "ALTER TABLE payments ADD COLUMN payload TEXT"
+            )
+            await self.connection.commit()
+            logger.info("Added payload column to payments")
+        except Exception:
+            pass
+
     async def execute(self, query: str, params: tuple = ()):
         """Execute a query and return cursor."""
         return await self.connection.execute(query, params)

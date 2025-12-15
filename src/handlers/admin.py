@@ -181,6 +181,68 @@ async def user_stats_command(message: Message):
     logger.info(f"User stats viewed by admin {message.from_user.id}: user {target_user_id}")
 
 
+@router.message(Command("setpremium"))
+async def set_premium_command(message: Message):
+    """Set premium status for a user."""
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Доступ запрещён")
+        return
+
+    args = message.text.split()
+
+    if len(args) < 2:
+        await message.answer(
+            "⭐ <b>ВЫДАЧА ПРЕМИУМА</b>\n\n"
+            "Использование:\n"
+            "<code>/setpremium USER_ID [дней]</code>\n\n"
+            "Примеры:\n"
+            "<code>/setpremium 123456789</code> - на 30 дней\n"
+            "<code>/setpremium 123456789 90</code> - на 90 дней\n"
+            "<code>/setpremium 123456789 0</code> - снять премиум\n"
+        )
+        return
+
+    try:
+        target_user_id = int(args[1])
+    except ValueError:
+        await message.answer("❌ ID должен быть числом")
+        return
+
+    # Default 30 days
+    days = 30
+    if len(args) >= 3:
+        try:
+            days = int(args[2])
+        except ValueError:
+            await message.answer("❌ Количество дней должно быть числом")
+            return
+
+    # Check if user exists
+    user = await user_repo.get_user(target_user_id)
+    if not user:
+        await message.answer(f"❌ Пользователь {target_user_id} не найден в базе")
+        return
+
+    if days == 0:
+        # Remove premium
+        await user_repo.set_premium(target_user_id, False, None)
+        await message.answer(
+            f"✅ Премиум снят с пользователя <code>{target_user_id}</code>"
+        )
+        logger.info(f"Premium removed from user {target_user_id} by admin {message.from_user.id}")
+    else:
+        # Set premium
+        expires_at = datetime.now() + timedelta(days=days)
+        await user_repo.set_premium(target_user_id, True, expires_at)
+        await message.answer(
+            f"✅ Премиум выдан!\n\n"
+            f"👤 Пользователь: <code>{target_user_id}</code>\n"
+            f"⏱ Срок: {days} дней\n"
+            f"📅 До: {expires_at.strftime('%d.%m.%Y %H:%M')}"
+        )
+        logger.info(f"Premium granted to user {target_user_id} for {days} days by admin {message.from_user.id}")
+
+
 @router.message(Command("reset_stats"))
 async def reset_stats_command(message: Message):
     """Reset all statistics - disabled for safety."""

@@ -119,12 +119,31 @@ class UserRepository:
             return datetime.fromisoformat(row["premium_until"]) > datetime.now()
         return True
 
-    async def set_premium(self, user_id: int, until: datetime):
+    async def set_premium(self, user_id: int, is_premium: bool = True, premium_until: datetime = None):
         """Set user premium status."""
         await db.execute("""
-            UPDATE users SET is_premium = 1, premium_until = ? WHERE id = ?
-        """, (until, user_id))
+            UPDATE users SET is_premium = ?, premium_until = ? WHERE id = ?
+        """, (1 if is_premium else 0, premium_until, user_id))
         await db.commit()
+
+    async def log_payment(
+        self,
+        user_id: int,
+        amount: int,
+        currency: str,
+        payment_type: str,
+        payload: str
+    ):
+        """Log a payment to database."""
+        try:
+            await db.execute("""
+                INSERT INTO payments (user_id, amount, currency, payment_type, payload, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (user_id, amount, currency, payment_type, payload, datetime.now()))
+            await db.commit()
+            logger.info(f"Payment logged: user={user_id}, amount={amount}, type={payment_type}")
+        except Exception as e:
+            logger.error(f"Error logging payment: {e}")
 
     async def get_by_referral_code(self, code: str) -> Optional[Dict[str, Any]]:
         """Get user by referral code."""
