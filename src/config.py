@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     # External Bot API (format: bot1:key1,bot2:key2)
     API_KEYS: str = ""
 
+    # Payment providers
+    CRYPTOBOT_TOKEN: str = ""
+    YOOKASSA_SHOP_ID: str = ""
+    YOOKASSA_SECRET_KEY: str = ""
+
     def get_admin_ids(self) -> List[int]:
         """Get parsed admin IDs."""
         if not self.ADMIN_IDS:

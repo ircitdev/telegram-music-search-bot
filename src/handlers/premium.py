@@ -9,8 +9,10 @@ from aiogram.types import (
 )
 
 from src.bot import bot
+from src.config import settings
 from src.database.repositories import user_repo
 from src.payments.stars import StarsPayment
+from src.payments.cryptobot import cryptobot, CryptoBotPayment
 from src.utils.logger import logger
 
 router = Router()
@@ -25,6 +27,13 @@ def create_premium_keyboard() -> InlineKeyboardMarkup:
         buttons.append([InlineKeyboardButton(
             text=f"⭐ {tariff['label']} - {tariff['stars']} Stars",
             callback_data=f"buy_premium:{tariff_id}"
+        )])
+
+    # CryptoBot option
+    if settings.CRYPTOBOT_TOKEN:
+        buttons.append([InlineKeyboardButton(
+            text="💎 Оплатить криптой (USDT/TON)",
+            callback_data="crypto_premium"
         )])
 
     # Add donate button
@@ -307,3 +316,140 @@ async def successful_payment_handler(message: Message):
         )
 
         logger.info(f"Donation received from {user_id}: {donation_id}")
+
+# ============== CryptoBot Payments ==============
+
+def create_crypto_tariffs_keyboard() -> InlineKeyboardMarkup:
+    """Create keyboard with crypto tariffs."""
+    tariffs = CryptoBotPayment.get_all_tariffs()
+
+    buttons = []
+    for tariff_id, tariff in tariffs.items():
+        buttons.append([InlineKeyboardButton(
+            text=f"💎 {tariff['title']} - ${tariff['amount']}",
+            callback_data=f"crypto_buy:{tariff_id}"
+        )])
+
+    buttons.append([InlineKeyboardButton(
+        text="🔙 Назад",
+        callback_data="show_premium"
+    )])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def create_crypto_donate_keyboard() -> InlineKeyboardMarkup:
+    """Create keyboard with crypto donation options."""
+    donations = CryptoBotPayment.get_all_donations()
+
+    buttons = []
+    for donation_id, donation in donations.items():
+        buttons.append([InlineKeyboardButton(
+            text=f"{donation['title']} - ${donation['amount']}",
+            callback_data=f"crypto_donate_pay:{donation_id}"
+        )])
+
+    buttons.append([InlineKeyboardButton(
+        text="🔙 Назад",
+        callback_data="show_donate"
+    )])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+@router.callback_query(F.data == "crypto_premium")
+async def crypto_premium_callback(callback: CallbackQuery):
+    """Show crypto tariffs."""
+    text = (
+        "💎 <b>ОПЛАТА КРИПТОЙ</b>\n\n"
+        "Принимаем: USDT, TON, BTC, ETH и другие\n\n"
+        "<b>Выбери тариф:</b>"
+    )
+
+    keyboard = create_crypto_tariffs_keyboard()
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("crypto_buy:"))
+async def crypto_buy_callback(callback: CallbackQuery):
+    """Create CryptoBot invoice for premium."""
+    tariff_id = callback.data.split(":")[1]
+    user_id = callback.from_user.id
+
+    invoice = await cryptobot.create_premium_invoice(user_id, tariff_id)
+
+    if invoice:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="💎 Оплатить",
+                url=invoice.bot_invoice_url
+            )],
+            [InlineKeyboardButton(
+                text="🔙 Назад",
+                callback_data="crypto_premium"
+            )]
+        ])
+
+        tariff = CryptoBotPayment.get_tariff(tariff_id)
+        await callback.message.edit_text(
+            f"💎 <b>{tariff['title']}</b>\n\n"
+            f"💰 Сумма: <b>${tariff['amount']} USDT</b>\n"
+            f"📅 Срок: {tariff['days']} дней\n\n"
+            f"Нажми кнопку ниже для оплаты.\n"
+            f"После оплаты премиум активируется автоматически.",
+            reply_markup=keyboard
+        )
+        await callback.answer()
+
+        logger.info(f"User {user_id} created crypto invoice: {invoice.invoice_id}")
+    else:
+        await callback.answer("❌ Ошибка создания платежа", show_alert=True)
+
+
+@router.callback_query(F.data == "crypto_donate")
+async def crypto_donate_callback(callback: CallbackQuery):
+    """Show crypto donation options."""
+    text = (
+        "💎 <b>ДОНАТ КРИПТОЙ</b>\n\n"
+        "Поддержи проект криптовалютой!\n\n"
+        "<b>Выбери сумму:</b>"
+    )
+
+    keyboard = create_crypto_donate_keyboard()
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("crypto_donate_pay:"))
+async def crypto_donate_pay_callback(callback: CallbackQuery):
+    """Create CryptoBot invoice for donation."""
+    donation_id = callback.data.split(":")[1]
+    user_id = callback.from_user.id
+
+    invoice = await cryptobot.create_donation_invoice(user_id, donation_id)
+
+    if invoice:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="💎 Оплатить",
+                url=invoice.bot_invoice_url
+            )],
+            [InlineKeyboardButton(
+                text="🔙 Назад",
+                callback_data="crypto_donate"
+            )]
+        ])
+
+        donation = CryptoBotPayment.get_donation(donation_id)
+        await callback.message.edit_text(
+            f"💎 <b>Донат: {donation['title']}</b>\n\n"
+            f"💰 Сумма: <b>${donation['amount']} USDT</b>\n\n"
+            f"Нажми кнопку ниже для оплаты.",
+            reply_markup=keyboard
+        )
+        await callback.answer()
+
+        logger.info(f"User {user_id} created crypto donation invoice: {invoice.invoice_id}")
+    else:
+        await callback.answer("❌ Ошибка создания платежа", show_alert=True)
