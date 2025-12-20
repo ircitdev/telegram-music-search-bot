@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     LASTFM_API_KEY: str = ""
     AUDD_API_KEY: str = ""
 
+    # External Bot API (format: bot1:key1,bot2:key2)
+    API_KEYS: str = ""
+
     def get_admin_ids(self) -> List[int]:
         """Get parsed admin IDs."""
         if not self.ADMIN_IDS:
