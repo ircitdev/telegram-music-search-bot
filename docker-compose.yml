@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # Main Telegram Bot
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: musicfinder-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - bot-temp:/app/temp
+      - bot-cache:/app/cache
+    depends_on:
+      - redis
+    networks:
+      - musicfinder-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Dashboard API
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: musicfinder-dashboard
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./data:/app/data:ro
+    networks:
+      - musicfinder-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: musicfinder-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 100mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - musicfinder-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Backup service (runs daily at 3 AM)
+  backup:
+    image: alpine:3.19
+    container_name: musicfinder-backup
+    restart: unless-stopped
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups
+    entrypoint: /bin/sh
+    command: >
+      -c "while true; do
+        sleep_time=$$(( (3600*24) - ($$(date +%s) % (3600*24)) + (3*3600) ));
+        echo \"Next backup in $$sleep_time seconds\";
+        sleep $$sleep_time;
+        backup_name=\"backup_$$(date +%Y%m%d_%H%M%S).tar.gz\";
+        tar -czf /backups/$$backup_name -C /data .;
+        echo \"Backup created: $$backup_name\";
+        find /backups -name 'backup_*.tar.gz' -mtime +7 -delete;
+        echo \"Old backups cleaned\";
+      done"
+    networks:
+      - musicfinder-net
+
+volumes:
+  bot-temp:
+  bot-cache:
+  redis-data:
+
+networks:
+  musicfinder-net:
+    driver: bridge

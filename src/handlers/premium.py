@@ -13,6 +13,7 @@ from src.config import settings
 from src.database.repositories import user_repo
 from src.payments.stars import StarsPayment
 from src.payments.cryptobot import cryptobot, CryptoBotPayment
+from src.payments.yoomoney import yoomoney, YooMoneyHandler
 from src.utils.logger import logger
 
 router = Router()
@@ -34,6 +35,13 @@ def create_premium_keyboard() -> InlineKeyboardMarkup:
         buttons.append([InlineKeyboardButton(
             text="💎 Оплатить криптой (USDT/TON)",
             callback_data="crypto_premium"
+        )])
+
+    # YooMoney option (bank card)
+    if settings.YOOMONEY_WALLET:
+        buttons.append([InlineKeyboardButton(
+            text="💳 Оплатить картой (ЮMoney)",
+            callback_data="yoomoney_premium"
         )])
 
     # Add donate button
@@ -451,5 +459,143 @@ async def crypto_donate_pay_callback(callback: CallbackQuery):
         await callback.answer()
 
         logger.info(f"User {user_id} created crypto donation invoice: {invoice.invoice_id}")
+    else:
+        await callback.answer("❌ Ошибка создания платежа", show_alert=True)
+
+
+# ============== YooMoney Payments ==============
+
+def create_yoomoney_tariffs_keyboard() -> InlineKeyboardMarkup:
+    """Create keyboard with YooMoney tariffs."""
+    tariffs = YooMoneyHandler.get_all_tariffs()
+
+    buttons = []
+    for tariff_id, tariff in tariffs.items():
+        buttons.append([InlineKeyboardButton(
+            text=f"💳 {tariff['title']} - {tariff['amount']}₽",
+            callback_data=f"yoomoney_buy:{tariff_id}"
+        )])
+
+    buttons.append([InlineKeyboardButton(
+        text="🔙 Назад",
+        callback_data="show_premium"
+    )])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def create_yoomoney_donate_keyboard() -> InlineKeyboardMarkup:
+    """Create keyboard with YooMoney donation options."""
+    donations = YooMoneyHandler.get_all_donations()
+
+    buttons = []
+    for donation_id, donation in donations.items():
+        buttons.append([InlineKeyboardButton(
+            text=f"{donation['title']} - {donation['amount']}₽",
+            callback_data=f"yoomoney_donate_pay:{donation_id}"
+        )])
+
+    buttons.append([InlineKeyboardButton(
+        text="🔙 Назад",
+        callback_data="show_donate"
+    )])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+@router.callback_query(F.data == "yoomoney_premium")
+async def yoomoney_premium_callback(callback: CallbackQuery):
+    """Show YooMoney tariffs."""
+    text = (
+        "💳 <b>ОПЛАТА КАРТОЙ (ЮMoney)</b>\n\n"
+        "Принимаем банковские карты через ЮMoney\n\n"
+        "<b>Выбери тариф:</b>"
+    )
+
+    keyboard = create_yoomoney_tariffs_keyboard()
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("yoomoney_buy:"))
+async def yoomoney_buy_callback(callback: CallbackQuery):
+    """Create YooMoney payment link for premium."""
+    tariff_id = callback.data.split(":")[1]
+    user_id = callback.from_user.id
+
+    payment = yoomoney.create_premium_payment(user_id, tariff_id)
+
+    if payment:
+        tariff = YooMoneyHandler.get_tariff(tariff_id)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="💳 Оплатить",
+                url=payment.payment_url
+            )],
+            [InlineKeyboardButton(
+                text="🔙 Назад",
+                callback_data="yoomoney_premium"
+            )]
+        ])
+
+        await callback.message.edit_text(
+            f"💳 <b>{tariff['title']}</b>\n\n"
+            f"💰 Сумма: <b>{tariff['amount']}₽</b>\n"
+            f"📅 Срок: {tariff['days']} дней\n\n"
+            f"Нажми кнопку ниже для оплаты.\n"
+            f"После оплаты премиум активируется в течение 5 минут.",
+            reply_markup=keyboard
+        )
+        await callback.answer()
+
+        logger.info(f"User {user_id} created YooMoney payment: {payment.label}")
+    else:
+        await callback.answer("❌ Ошибка создания платежа", show_alert=True)
+
+
+@router.callback_query(F.data == "yoomoney_donate")
+async def yoomoney_donate_callback(callback: CallbackQuery):
+    """Show YooMoney donation options."""
+    text = (
+        "💳 <b>ДОНАТ КАРТОЙ</b>\n\n"
+        "Поддержи проект через ЮMoney!\n\n"
+        "<b>Выбери сумму:</b>"
+    )
+
+    keyboard = create_yoomoney_donate_keyboard()
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("yoomoney_donate_pay:"))
+async def yoomoney_donate_pay_callback(callback: CallbackQuery):
+    """Create YooMoney payment link for donation."""
+    donation_id = callback.data.split(":")[1]
+    user_id = callback.from_user.id
+
+    payment = yoomoney.create_donation_payment(user_id, donation_id)
+
+    if payment:
+        donation = YooMoneyHandler.get_donation(donation_id)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="💳 Оплатить",
+                url=payment.payment_url
+            )],
+            [InlineKeyboardButton(
+                text="🔙 Назад",
+                callback_data="yoomoney_donate"
+            )]
+        ])
+
+        await callback.message.edit_text(
+            f"💳 <b>Донат: {donation['title']}</b>\n\n"
+            f"💰 Сумма: <b>{donation['amount']}₽</b>\n\n"
+            f"Нажми кнопку ниже для оплаты.",
+            reply_markup=keyboard
+        )
+        await callback.answer()
+
+        logger.info(f"User {user_id} created YooMoney donation: {payment.label}")
     else:
         await callback.answer("❌ Ошибка создания платежа", show_alert=True)

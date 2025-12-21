@@ -1,0 +1,32 @@
+# MusicFinder Dashboard API
+FROM python:3.11-slim
+
+# Create non-root user
+RUN useradd -m -u 1000 apiuser
+
+WORKDIR /app
+
+# Install dashboard dependencies
+RUN pip install --no-cache-dir \
+    fastapi==0.115.0 \
+    uvicorn[standard]==0.32.0 \
+    aiosqlite==0.20.0 \
+    pydantic>=2.0.0 \
+    psutil==6.1.0
+
+# Copy dashboard files
+COPY dashboard/ /app/dashboard/
+COPY src/utils/auth_codes.py /app/src/utils/auth_codes.py
+
+# Create directories
+RUN mkdir -p /app/data \
+    && chown -R apiuser:apiuser /app
+
+USER apiuser
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+EXPOSE 8085
+
+CMD ["uvicorn", "dashboard.api:app", "--host", "0.0.0.0", "--port", "8085"]

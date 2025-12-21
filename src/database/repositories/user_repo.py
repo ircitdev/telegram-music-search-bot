@@ -213,6 +213,23 @@ class UserRepository:
         """)
         return dict(row) if row else {}
 
+    async def get_user_language(self, user_id: int) -> str:
+        """Get user's preferred language."""
+        row = await db.fetchone(
+            "SELECT language FROM users WHERE id = ?",
+            (user_id,)
+        )
+        return row["language"] if row and row["language"] else "ru"
+
+    async def set_user_language(self, user_id: int, language: str):
+        """Set user's preferred language."""
+        await db.execute(
+            "UPDATE users SET language = ? WHERE id = ?",
+            (language, user_id)
+        )
+        await db.commit()
+        logger.info(f"User {user_id} set language to {language}")
+
 
 # Global instance
 user_repo = UserRepository()

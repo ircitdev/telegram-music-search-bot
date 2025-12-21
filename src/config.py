@@ -51,6 +51,18 @@ class Settings(BaseSettings):
     YOOKASSA_SHOP_ID: str = ""
     YOOKASSA_SECRET_KEY: str = ""
 
+    # YooMoney (Quickpay)
+    YOOMONEY_WALLET: str = ""  # Wallet number (e.g., 4100123456789)
+    YOOMONEY_SECRET: str = ""  # Secret key for notification verification
+    YOOMONEY_NOTIFICATION_URL: str = ""  # Webhook URL for payment notifications
+
+    # Error tracking
+    SENTRY_DSN: str = ""
+
+    # Channel for auto-posting top tracks
+    CHANNEL_ID: str = ""  # @TopMusicToday or -100xxxxxxxxxx
+    CHANNEL_POST_HOUR: int = 12  # Hour to post daily top (0-23, Moscow time)
+
     def get_admin_ids(self) -> List[int]:
         """Get parsed admin IDs."""
         if not self.ADMIN_IDS:

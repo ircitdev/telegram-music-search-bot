@@ -43,9 +43,11 @@ async def admin_command(message: Message):
         "👥 /users - Количество пользователей\n"
         "🏆 /top - ТОП 10 пользователей\n"
         "👤 /user_stats - Статистика пользователя\n"
-        "⭐ /setpremium - Выдать премиум\n"
+        "⭐️ /setpremium - Выдать премиум\n"
         "🔄 /reset_stats - Сбросить статистику\n"
         "📢 /mailing - Массовая рассылка\n"
+        "🌐 /web_admin - Web-дашборд\n"
+        "📣 /post_top - Опубликовать топ в канал\n"
         "📝 /help_admin - Справка по командам\n"
     )
 
@@ -468,3 +470,70 @@ async def setpremium_command(message: Message):
             pass
 
     logger.info(f"Premium status changed by admin {message.from_user.id}: user {target_user_id}, days {days}")
+
+
+from src.utils.auth_codes import generate_auth_code
+
+
+@router.message(Command("web_admin"))
+async def web_admin_command(message: Message):
+    """Send web admin dashboard link with auth code."""
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Доступ запрещён")
+        return
+
+    # Generate one-time auth code
+    auth_code = generate_auth_code(message.from_user.id, message.from_user.username)
+
+    # Dashboard URL with code
+    dashboard_url = "https://musicfinder.uspeshnyy.ru"
+
+    text = (
+        "🌐 <b>WEB-ДАШБОРД</b>\n\n"
+        f"🔗 <b>URL:</b> {dashboard_url}\n\n"
+        f"🔑 <b>Код авторизации (действует 5 мин):</b>\n"
+        f"<code>{auth_code}</code>\n\n"
+        f"<i>Нажми на код, чтобы скопировать, затем вставь на сайте</i>\n\n"
+        f"📊 <b>Возможности дашборда:</b>\n"
+        f"• Статистика пользователей и скачиваний\n"
+        f"• Управление премиум-подписками\n"
+        f"• Статистика платежей и рефералов\n"
+        f"• Управление API ключами\n"
+        f"• Редактирование конфигурации\n"
+        f"• Мониторинг системы"
+    )
+
+    await message.answer(text)
+    logger.info(f"Web admin auth code generated for {message.from_user.id}")
+
+
+from src.utils.channel_poster import channel_poster
+
+
+@router.message(Command("post_top"))
+async def post_top_command(message: Message):
+    """Manually post top tracks to channel."""
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Доступ запрещён")
+        return
+
+    if not settings.CHANNEL_ID:
+        await message.answer("❌ CHANNEL_ID не настроен")
+        return
+
+    args = message.text.split()
+    period = args[1] if len(args) > 1 else "day"
+
+    await message.answer(f"📤 Публикую топ ({period}) в канал...")
+
+    try:
+        if period == "week":
+            await channel_poster.post_weekly_top()
+        else:
+            await channel_poster.post_daily_top()
+
+        await message.answer(f"✅ Топ опубликован в {settings.CHANNEL_ID}")
+        logger.info(f"Manual channel post by admin {message.from_user.id}: {period}")
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {e}")
+        logger.error(f"Manual channel post error: {e}")

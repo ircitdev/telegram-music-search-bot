@@ -3,17 +3,59 @@
 Telegram бот для поиска и скачивания музыки с YouTube Music. Легкий, быстрый и удобный способ найти любимую песню!
 
 **Bot:** [@UspMusicFinder_bot](https://t.me/UspMusicFinder_bot)
+**Channel:** [@TopMusicToday](https://t.me/TopMusicToday)
 
 ---
 
 ## ✨ Возможности
 
+### Основные функции
 - 🔍 **Поиск музыки** - по названию песни или исполнителю
 - ⬇️ **Скачивание MP3** - высокое качество (192 kbps)
-- 📊 **TOP популярных** - топ треков по странам
-- 🎯 **Удобный UI** - кнопки выбора, красивое форматирование
-- 📝 **Метаданные** - правильные теги (исполнитель, название)
-- ⚡ **Быстро** - асинхронный поиск и скачивание
+- 📊 **TOP популярных** - топ треков за день/неделю/месяц
+- 🎵 **Рекомендации** - персональные рекомендации на основе истории
+- 📜 **История** - последние 20 скачиваний
+- ❤️ **Избранное** - сохранение любимых треков
+- 🎤 **Распознавание музыки** - определение песни по аудио/напеванию
+
+### Монетизация
+- ⭐ **Telegram Stars** - встроенные платежи
+- 💎 **CryptoBot** - оплата криптовалютой (USDT, TON, BTC, ETH)
+- 👥 **Реферальная программа** - +5 скачиваний за каждого друга
+
+### Мультиязычность
+- 🇷🇺 Русский
+- 🇬🇧 English
+- 🇺🇿 O'zbek
+
+---
+
+## 📋 Команды бота
+
+| Команда | Описание |
+|---------|----------|
+| `/start` | Приветствие и регистрация |
+| `/help` | Справка по командам |
+| `/top` | Популярные треки |
+| `/recommendations` | Персональные рекомендации |
+| `/history` | История скачиваний |
+| `/favorites` | Избранные треки |
+| `/referral` | Реферальная программа |
+| `/premium` | Купить премиум |
+| `/donate` | Поддержать проект |
+| `/recognize` | Распознать музыку |
+| `/lang` | Сменить язык (RU/EN/UZ) |
+
+### Админ-команды
+| Команда | Описание |
+|---------|----------|
+| `/admin` | Админ-панель |
+| `/stats` | Статистика бота |
+| `/users` | Топ пользователей |
+| `/setpremium` | Выдать премиум |
+| `/mailing` | Массовая рассылка |
+| `/post_top` | Опубликовать топ в канал |
+| `/api` | API для внешних ботов |
 
 ---
 
@@ -44,7 +86,7 @@ pip install -r requirements.txt
 
 ### 3. Конфигурация
 
-Создайте файл `.env` в корневой директории:
+Скопируйте `.env.example` в `.env` и заполните:
 
 ```env
 # Telegram Bot
@@ -60,8 +102,8 @@ DATABASE_PATH=./data/database.db
 # Лимиты
 MAX_FILE_SIZE=52428800  # 50MB
 MAX_DURATION=600  # 10 минут
-RATE_LIMIT_REQUESTS=5  # запросов в минуту
-RATE_LIMIT_PERIOD=60  # секунд
+RATE_LIMIT_REQUESTS=5
+RATE_LIMIT_PERIOD=60
 
 # Логирование
 LOG_LEVEL=INFO
@@ -70,14 +112,21 @@ LOG_LEVEL=INFO
 ENABLE_CACHE=true
 ENABLE_STATS=true
 ENABLE_INLINE=true
+
+# Опциональные API
+LASTFM_API_KEY=
+AUDD_API_KEY=          # Для распознавания музыки
+
+# Платежи
+CRYPTOBOT_TOKEN=       # Для криптоплатежей
+
+# Мониторинг
+SENTRY_DSN=            # Для отслеживания ошибок
+
+# Канал
+CHANNEL_ID=@TopMusicToday
+CHANNEL_POST_HOUR=12   # Час автопостинга
 ```
-
-**Где получить BOT_TOKEN:**
-
-1. Напиши боту [@BotFather](https://t.me/botfather) в Telegram
-2. Команда `/newbot`
-3. Следуй инструкциям
-4. Скопируй полученный токен в `.env`
 
 ### 4. Запуск
 
@@ -85,98 +134,36 @@ ENABLE_INLINE=true
 python -m src.main
 ```
 
-**Ожидаемый вывод:**
-
-```log
-2025-12-04 13:XX:XX | INFO | usp_music_finder | Bot started: @UspMusicFinder_bot
-2025-12-04 13:XX:XX | INFO | usp_music_finder | Polling mode activated
-```
-
 ---
 
-## 📖 Использование
+## 🐳 Docker
 
-### Поиск музыки
-
-1. Отправь боту название песни или исполнителя
-2. Выбери трек из списка (кнопки 1-10)
-3. Получи MP3 файл!
-
-**Примеры:**
-
-- `Bohemian Rhapsody`
-- `Queen`
-- `The Beatles - Let It Be`
-
-### Команды
+### Docker Compose (рекомендуется)
 
 ```bash
-/start - Начать работу с ботом
-/help - Показать справку
-/top - Популярные песни по странам
+docker-compose up -d
 ```
 
----
+Включает:
+- 🤖 Bot - основной бот
+- 📊 Dashboard - веб-админка (порт 8080)
+- 🔄 Redis - кэширование
+- 💾 Backup - автоматический бэкап БД
 
-## 🏗️ Архитектура
+### Ручной запуск
 
+```bash
+# Сборка
+docker build -t usp-music-finder .
+
+# Запуск
+docker run -d \
+  --name music-bot \
+  --env-file .env \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  usp-music-finder
 ```
-┌─────────────────┐
-│  Telegram Bot   │
-│   (aiogram)     │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Dispatcher    │ ← Обработка команд
-└────────┬────────┘
-         │
-         ├──────────────────┐
-         │                  │
-         ▼                  ▼
-┌─────────────────┐  ┌─────────────────┐
-│  Search Handler │  │  Inline Handler │
-└────────┬────────┘  └────────┬────────┘
-         │                    │
-         └──────────┬─────────┘
-                    ▼
-         ┌─────────────────┐
-         │  Music Searcher │ ← YouTube Music / iTunes
-         └────────┬────────┘
-                  │
-                  ▼
-         ┌─────────────────┐
-         │   Downloader    │ ← yt-dlp
-         └────────┬────────┘
-                  │
-                  ▼
-         ┌─────────────────┐
-         │  Telegram Send  │ ← Отправка MP3
-         └─────────────────┘
-```
-
----
-
-## 🛠️ Технологии
-
-### Backend
-
-- **Python 3.11+**
-- **aiogram 3.15** - Telegram Bot framework
-- **yt-dlp** - универсальный загрузчик медиа
-- **mutagen** - работа с метаданными аудио
-- **aiohttp** - асинхронные HTTP запросы
-
-### Источники музыки
-
-- **YouTube Music** - основной источник (через yt-dlp)
-- **iTunes API** - альтернативный источник
-- **Last.fm API** - топ треков по странам
-
-### База данных
-
-- **SQLite** - статистика использования (опционально)
-- **Redis** - кэш результатов (опционально)
 
 ---
 
@@ -189,77 +176,83 @@ UspMusicFinder/
 │   ├── config.py           # Настройки из .env
 │   ├── main.py             # Точка входа
 │   ├── models.py           # Модель Track
+│   ├── keyboards.py        # Клавиатуры
 │   │
-│   ├── handlers/
-│   │   ├── start.py        # /start, /help
+│   ├── handlers/           # Обработчики команд
+│   │   ├── start.py        # /start, /help, Quick Replies
 │   │   ├── search.py       # Поиск по тексту
 │   │   ├── top.py          # TOP популярных
-│   │   ├── inline.py       # Inline режим
+│   │   ├── history.py      # История скачиваний
+│   │   ├── favorites.py    # Избранное
+│   │   ├── recommendations.py  # Рекомендации
+│   │   ├── referral.py     # Реферальная система
+│   │   ├── premium.py      # Премиум и платежи
+│   │   ├── recognize.py    # Распознавание музыки
+│   │   ├── language.py     # Смена языка
+│   │   ├── admin.py        # Админ-панель
+│   │   ├── api.py          # API для ботов
 │   │   └── callbacks.py    # Обработка кнопок
 │   │
-│   ├── searchers/
-│   │   ├── youtube.py      # YouTube Music
-│   │   └── itunes.py       # iTunes API
+│   ├── locales/            # Переводы
+│   │   ├── __init__.py     # Система локализации
+│   │   ├── ru.py           # Русский
+│   │   ├── en.py           # English
+│   │   └── uz.py           # O'zbek
 │   │
-│   ├── downloaders/
-│   │   └── youtube_dl.py   # Скачивание через yt-dlp
+│   ├── database/           # База данных
+│   │   ├── connection.py   # Подключение SQLite
+│   │   └── repositories/   # Репозитории
 │   │
-│   └── utils/
+│   ├── payments/           # Платежные системы
+│   │   ├── stars.py        # Telegram Stars
+│   │   └── cryptobot.py    # CryptoBot
+│   │
+│   ├── searchers/          # Поиск музыки
+│   │   └── youtube.py      # YouTube Music
+│   │
+│   ├── downloaders/        # Скачивание
+│   │   └── youtube_dl.py   # yt-dlp
+│   │
+│   └── utils/              # Утилиты
 │       ├── logger.py       # Логирование
 │       ├── cache.py        # Кэширование
-│       └── rate_limiter.py # Rate limiting
+│       ├── rate_limiter.py # Rate limiting
+│       ├── cleanup.py      # Очистка temp
+│       ├── sentry.py       # Error tracking
+│       └── channel_poster.py # Автопостинг
 │
-├── data/
-│   ├── temp/               # Временные файлы
-│   ├── cache/              # Кэш результатов
-│   └── database.db         # SQLite (опционально)
-│
+├── tests/                  # Тесты
+├── scripts/                # Скрипты (backup/restore)
+├── .github/workflows/      # CI/CD
+├── data/                   # Данные
 ├── logs/                   # Логи
-├── .env                    # Конфигурация
+├── Dockerfile              # Docker образ бота
+├── Dockerfile.dashboard    # Docker образ админки
+├── docker-compose.yml      # Docker Compose
 └── requirements.txt        # Зависимости
 ```
 
 ---
 
-## 📋 Команды бота
+## 🛠️ Технологии
 
-| Команда | Описание |
-|---------|----------|
-| `/start` | Начать работу с ботом |
-| `/help` | Показать справку |
-| `/top` | Популярные песни по странам |
-| `/history` | История поиска (опционально) |
+### Backend
+- **Python 3.11+**
+- **aiogram 3.15** - Telegram Bot framework
+- **yt-dlp** - загрузчик медиа
+- **mutagen** - метаданные аудио
+- **aiohttp** - асинхронные HTTP запросы
+- **aiosqlite** - асинхронный SQLite
 
----
+### Платежи
+- **Telegram Stars** - встроенные платежи
+- **CryptoBot API** - криптовалюта
 
-## ⚙️ Конфигурация
-
-### Переменные окружения (.env)
-
-```env
-# Telegram Bot
-BOT_TOKEN=your_token_here
-BOT_USERNAME=UspMusicFinder_bot
-
-# Пути
-TEMP_DIR=./data/temp
-CACHE_DIR=./data/cache
-LOGS_DIR=./logs
-
-# Лимиты
-MAX_FILE_SIZE=52428800  # 50MB (лимит Telegram)
-MAX_DURATION=600        # 10 минут
-RATE_LIMIT_REQUESTS=5   # Запросов в минуту
-RATE_LIMIT_PERIOD=60    # Период в секундах
-
-# Логирование
-LOG_LEVEL=INFO
-
-# Функции
-ENABLE_CACHE=true
-ENABLE_STATS=true
-ENABLE_INLINE=true
-```
+### Инфраструктура
+- **Docker** - контейнеризация
+- **GitHub Actions** - CI/CD
+- **Sentry** - мониторинг ошибок
+- **pytest** - тестирование
 
 ---
 
@@ -267,13 +260,13 @@ ENABLE_INLINE=true
 
 ### Установка dev зависимостей
 
-```powershell
+```bash
 pip install -r requirements-dev.txt
 ```
 
 ### Запуск тестов
 
-```powershell
+```bash
 pytest
 pytest -v  # verbose
 pytest --cov=src  # с покрытием
@@ -281,124 +274,88 @@ pytest --cov=src  # с покрытием
 
 ### Форматирование и линтинг
 
-```powershell
-# Форматирование
+```bash
 black src tests
-
-# Линтинг
 flake8 src tests
-
-# Проверка типов
 mypy src
 ```
 
-### Запуск в режиме разработки
-
-```powershell
-# С автоперезагрузкой при изменениях
-python src/main.py
-```
-
 ---
 
-## 🐳 Docker
+## 📊 База данных
 
-### Build
+### Таблицы
 
-```bash
-docker build -t usp-music-finder .
-```
+- **users** - пользователи (премиум, бонусы, язык)
+- **downloads** - история скачиваний
+- **favorites** - избранные треки
+- **track_stats** - статистика треков
+- **daily_downloads** - дневные лимиты
+- **payments** - платежи
+- **referrals** - рефералы
 
-### Run
-
-```bash
-docker run -d \
-  --name music-bot \
-  --env-file .env \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/logs:/app/logs \
-  usp-music-finder
-```
-
-### Docker Compose
+### Бэкап
 
 ```bash
-docker-compose up -d
+# Создать бэкап
+./scripts/backup.sh
+
+# Восстановить из бэкапа
+./scripts/restore.sh backup_YYYYMMDD_HHMMSS.db
 ```
-
----
-
-## 📊 Статистика
-
-Бот собирает анонимную статистику использования:
-
-- Количество поисков
-- Популярные запросы
-- Количество скачиваний
-- Активные пользователи
-
-Статистика хранится в SQLite базе данных.
 
 ---
 
 ## 🔒 Безопасность
 
-- ✅ API токен в `.env` (не в коде)
+- ✅ API токены в `.env`
 - ✅ Rate limiting (5 запросов/минуту)
 - ✅ Валидация входных данных
-- ✅ Ограничение размера файлов
-- ✅ Автоматическая очистка временных файлов
+- ✅ Ограничение размера файлов (50MB)
+- ✅ Ограничение длительности (60 минут)
+- ✅ Автоматическая очистка temp файлов
 - ✅ Логирование всех действий
+- ✅ Sentry для отслеживания ошибок
 
 ---
 
 ## 🗺️ Roadmap
 
-### ✅ Phase 1: MVP (Week 1)
+### ✅ Реализовано
 
-- [x] Базовый бот (/start, /help)
-- [x] Поиск по YouTube Music
-- [x] Скачивание MP3
-- [x] Отправка в Telegram
+- [x] Поиск и скачивание музыки
+- [x] База данных SQLite
+- [x] История и избранное
+- [x] Пагинация результатов
+- [x] Лимиты для бесплатных пользователей
+- [x] Премиум подписка (Stars + Crypto)
+- [x] Топ треков по периодам
+- [x] Персональные рекомендации
+- [x] Поделиться треком (deep linking)
+- [x] Реферальная система
+- [x] Распознавание музыки (AudD API)
+- [x] API для внешних ботов
+- [x] Docker контейнеризация
+- [x] CI/CD (GitHub Actions)
+- [x] Unit тесты
+- [x] Sentry мониторинг
+- [x] Автопостинг в канал
+- [x] Quick replies клавиатура
+- [x] Мультиязычность (RU/EN/UZ)
 
-### ✅ Phase 2: UI/UX (Week 2)
+### 🔄 В планах
 
-- [x] Inline keyboard (кнопки 1-10)
-- [x] TOP популярных песен
-- [x] Rate limiting
-- [x] Красивые сообщения
-
-### 🔄 Phase 3: Extensions (Week 3)
-
-- [ ] Inline режим
-- [ ] История поиска
-- [ ] Альтернативные источники (iTunes, Deezer)
-- [ ] Распознавание аудио (Shazam-like)
-
-### 📅 Phase 4: Production (Week 4)
-
-- [ ] Docker контейнер
-- [ ] Деплой на VPS
-- [ ] Мониторинг и логи
-- [ ] Backup базы данных
+- [ ] Redis для кэширования
+- [ ] CDN для часто скачиваемых треков
+- [ ] Prometheus + Grafana мониторинг
+- [ ] Интеграция ЮMoney API
 
 ---
 
 ## 📚 Документация
 
-- [ACTIONS.md](ACTIONS.md) - **НАЧНИ ОТСЮДА** - Пошаговые инструкции
-- [PROJECT_SPEC.md](PROJECT_SPEC.md) - Техническая спецификация (73KB)
-- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) - План разработки (4 недели)
-
----
-
-## 🤝 Contributing
-
-1. Fork проекта
-2. Создай feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit изменения (`git commit -m 'Add some AmazingFeature'`)
-4. Push в branch (`git push origin feature/AmazingFeature`)
-5. Открой Pull Request
+- [TODO.md](TODO.md) - План улучшений и все команды
+- [API_instructions.md](API_instructions.md) - Документация API
 
 ---
 
@@ -412,9 +369,9 @@ docker-compose up -d
 
 ## 👤 Автор
 
-Создано с помощью DevTools Environment и Claude Code.
-
+**Server:** 31.44.7.144
 **Bot:** [@UspMusicFinder_bot](https://t.me/UspMusicFinder_bot)
+**Channel:** [@TopMusicToday](https://t.me/TopMusicToday)
 
 ---
 
@@ -423,7 +380,8 @@ docker-compose up -d
 - [aiogram](https://github.com/aiogram/aiogram) - Telegram Bot framework
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - универсальный загрузчик
 - [mutagen](https://github.com/quodlibet/mutagen) - метаданные аудио
+- [AudD](https://audd.io/) - распознавание музыки
 
 ---
 
-**Готов к использованию!** 🎵 Начни с [ACTIONS.md](ACTIONS.md)
+**Готов к использованию!** 🎵

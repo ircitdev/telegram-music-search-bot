@@ -23,3 +23,6 @@ requests==2.32.3
 # Database (optional)
 aiosqlite==0.20.0
 
+# Error tracking (optional)
+sentry-sdk[aiohttp]>=2.0.0
+

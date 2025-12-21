@@ -164,6 +164,16 @@ class Database:
         except Exception:
             pass
 
+        # Add language column to users if not exists
+        try:
+            await self.connection.execute(
+                "ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'ru'"
+            )
+            await self.connection.commit()
+            logger.info("Added language column to users")
+        except Exception:
+            pass
+
     async def execute(self, query: str, params: tuple = ()):
         """Execute a query and return cursor."""
         return await self.connection.execute(query, params)

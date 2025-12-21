@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFeature: Implement Stage 8 (Recommendations) and Stage 9 (Share Track)\n\n✨ New Features:\n- Stage 8: Персональные рекомендации на основе истории пользователя\n- Stage 9: Шаринг треков с deep linking\n- Stage 10: Реферальная система (завершена ранее)\n\n📁 New Files:\n- src/handlers/recommendations.py - рекомендации на основе AI\n- src/handlers/share.py - шаринг треков\n- src/handlers/referral.py - реферальная программа\n- CHANGELOG.md - история изменений проекта\n\n🔧 Changes:\n- src/database/connection.py: добавлена таблица referrals\n- src/database/repositories/user_repo.py: методы для рефералов\n- src/database/repositories/stats_repo.py: get_tracks_by_artist()\n- src/handlers/start.py: deep linking для треков и рефералов\n- src/handlers/admin.py: команда /setpremium\n- src/main.py: регистрация новых роутеров\n\n🎯 Features Implemented:\n- 🎵 Персональные рекомендации (алгоритм на основе истории)\n- 📤 Deep linking для шаринга треков\n- 👥 Реферальная система с бонусами\n- ⭐ Админ команда для выдачи премиума\n- 📊 Статистика рефералов\n\n💾 Database:\n- Создан бекап: backups/database_20251214_1018.db\n- Таблица referrals для отслеживания рефералов\n- Обновлена локальная БД\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFeature: Stage 12 - External Bot API\n\nNew features:\n- /api command - search, download and send to target chat\n- /api_search - search only, returns track list\n- /api_download - download by video ID\n- API key authentication via .env\n- API_instructions.md documentation\n\nUpdates:\n- TODO.md - marked all stages as completed\n- Synced local files with server\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(curl:*)",
+      "Bash(openssl s_client:*)",
+      "Bash(openssl x509:*)"
     ]
   }
 }
