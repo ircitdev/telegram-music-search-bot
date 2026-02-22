@@ -1,7 +1,7 @@
 """Admin panel and commands."""
 from datetime import datetime, timedelta
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -28,6 +28,31 @@ def is_admin(user_id: int) -> bool:
     return user_id in admin_ids
 
 
+def create_admin_keyboard() -> InlineKeyboardMarkup:
+    """Create admin panel keyboard with command buttons."""
+    buttons = [
+        [
+            InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats"),
+            InlineKeyboardButton(text="👥 Пользователи", callback_data="admin:users")
+        ],
+        [
+            InlineKeyboardButton(text="🏆 ТОП-10", callback_data="admin:top"),
+            InlineKeyboardButton(text="🌐 Web-панель", callback_data="admin:web")
+        ],
+        [
+            InlineKeyboardButton(text="📢 Рассылка", callback_data="admin:mailing"),
+            InlineKeyboardButton(text="📣 Пост в канал", callback_data="admin:post")
+        ],
+        [
+            InlineKeyboardButton(text="🔧 Обновить yt-dlp", callback_data="admin:update_ytdlp")
+        ],
+        [
+            InlineKeyboardButton(text="📝 Справка", callback_data="admin:help")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 @router.message(Command("admin"))
 async def admin_command(message: Message):
     """Show admin panel."""
@@ -38,20 +63,13 @@ async def admin_command(message: Message):
 
     text = (
         "🔐 <b>АДМИН-ПАНЕЛЬ</b>\n\n"
-        "Доступные команды:\n\n"
-        "📊 /stats - Общая статистика бота\n"
-        "👥 /users - Количество пользователей\n"
-        "🏆 /top - ТОП 10 пользователей\n"
-        "👤 /user_stats - Статистика пользователя\n"
-        "⭐️ /setpremium - Выдать премиум\n"
-        "🔄 /reset_stats - Сбросить статистику\n"
-        "📢 /mailing - Массовая рассылка\n"
-        "🌐 /web_admin - Web-дашборд\n"
-        "📣 /post_top - Опубликовать топ в канал\n"
-        "📝 /help_admin - Справка по командам\n"
+        "Выбери действие из меню ниже:\n\n"
+        "<i>Также доступны команды:</i>\n"
+        "• <code>/user_stats ID</code> - статистика пользователя\n"
+        "• <code>/setpremium ID дни</code> - выдать премиум"
     )
 
-    await message.answer(text)
+    await message.answer(text, reply_markup=create_admin_keyboard())
     logger.info(f"Admin panel opened by {message.from_user.id}")
 
 
@@ -537,3 +555,332 @@ async def post_top_command(message: Message):
     except Exception as e:
         await message.answer(f"❌ Ошибка: {e}")
         logger.error(f"Manual channel post error: {e}")
+
+
+@router.message(Command("update_ytdlp"))
+async def update_ytdlp_command(message: Message):
+    """Update yt-dlp to latest version."""
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Доступ запрещён")
+        return
+
+    await message.answer("⏳ Обновляю yt-dlp...\n\nПожалуйста, подожди.")
+
+    try:
+        import subprocess
+        import sys
+
+        # Update yt-dlp using pip
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+
+        if result.returncode == 0:
+            # Get version info
+            version_result = subprocess.run(
+                [sys.executable, "-c", "import yt_dlp; print(yt_dlp.version.__version__)"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            version = version_result.stdout.strip() if version_result.returncode == 0 else "unknown"
+
+            await message.answer(
+                f"✅ <b>yt-dlp успешно обновлён</b>\n\n"
+                f"📦 Версия: <code>{version}</code>\n\n"
+                f"Теперь попробуй скачать проблемный трек заново."
+            )
+            logger.info(f"yt-dlp updated to version {version} by admin {message.from_user.id}")
+        else:
+            await message.answer(
+                f"❌ <b>Ошибка обновления</b>\n\n"
+                f"<code>{result.stderr[:500]}</code>"
+            )
+            logger.error(f"yt-dlp update failed: {result.stderr}")
+
+    except subprocess.TimeoutExpired:
+        await message.answer("❌ Превышено время ожидания обновления (120 сек)")
+        logger.error("yt-dlp update timeout")
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {e}")
+        logger.error(f"yt-dlp update error: {e}")
+
+
+# Callback handlers for admin panel buttons
+from aiogram.types import CallbackQuery
+
+
+@router.callback_query(F.data.startswith("admin:"))
+async def admin_callback_handler(callback: CallbackQuery, state: FSMContext):
+    """Handle admin panel button clicks."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+
+    action = callback.data.split(":")[1]
+
+    if action == "stats":
+        # Show statistics
+        summary = await user_repo.get_stats_summary()
+        total_users = summary.get("total_users", 0)
+        total_searches = summary.get("total_searches", 0)
+        total_downloads = summary.get("total_downloads", 0)
+        active_users = await user_repo.get_active_users(minutes=60)
+
+        uptime = datetime.now() - BOT_START_TIME
+        hours, remainder = divmod(int(uptime.total_seconds()), 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        text = (
+            "📊 <b>СТАТИСТИКА БОТА</b>\n\n"
+            f"⏱ <b>Время работы:</b> {hours}ч {minutes}м {seconds}с\n\n"
+            f"👥 <b>Пользователи:</b>\n"
+            f"  • Всего: {total_users}\n"
+            f"  • Активных (60 мин): {active_users}\n\n"
+            f"📈 <b>Активность:</b>\n"
+            f"  • Поисков: {total_searches}\n"
+            f"  • Скачиваний: {total_downloads}\n"
+        )
+
+        # Add back button
+        back_button = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=back_button)
+        await callback.answer()
+
+    elif action == "users":
+        # Show user count
+        count = await user_repo.get_user_count()
+        active = await user_repo.get_active_users(minutes=60)
+
+        text = (
+            "👥 <b>ПОЛЬЗОВАТЕЛИ</b>\n\n"
+            f"📊 <b>Всего:</b> {count}\n"
+            f"🟢 <b>Активных (60 мин):</b> {active}\n"
+        )
+
+        back_button = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=back_button)
+        await callback.answer()
+
+    elif action == "top":
+        # Show top users
+        top_users = await user_repo.get_top_users(limit=10)
+
+        if not top_users:
+            await callback.answer("📊 Пока нет данных о пользователях", show_alert=True)
+            return
+
+        text = "🏆 <b>ТОП 10 ПОЛЬЗОВАТЕЛЕЙ</b>\n\n"
+        for i, user in enumerate(top_users, 1):
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+            username = f"@{user['username']}" if user.get('username') else user.get('first_name', 'Unknown')
+            text += f"{medal} {username}\n"
+            text += f"    🔍 {user['searches']} | ⬇️ {user['downloads']}\n\n"
+
+        back_button = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=back_button)
+        await callback.answer()
+
+    elif action == "web":
+        # Show web admin panel
+        auth_code = generate_auth_code(callback.from_user.id, callback.from_user.username)
+        dashboard_url = "https://musicfinder.uspeshnyy.ru"
+
+        text = (
+            "🌐 <b>WEB-ДАШБОРД</b>\n\n"
+            f"🔗 <b>URL:</b> {dashboard_url}\n\n"
+            f"🔑 <b>Код авторизации (действует 5 мин):</b>\n"
+            f"<code>{auth_code}</code>\n\n"
+            f"<i>Нажми на код, чтобы скопировать, затем вставь на сайте</i>\n\n"
+            f"📊 <b>Возможности дашборда:</b>\n"
+            f"• Статистика пользователей и скачиваний\n"
+            f"• Управление премиум-подписками\n"
+            f"• Статистика платежей и рефералов\n"
+            f"• Управление API ключами\n"
+            f"• Редактирование конфигурации\n"
+            f"• Мониторинг системы"
+        )
+
+        back_button = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=back_button)
+        await callback.answer()
+        logger.info(f"Web admin auth code generated for {callback.from_user.id}")
+
+    elif action == "mailing":
+        # Start mailing
+        user_count = await user_repo.get_user_count()
+
+        text = (
+            f"📢 <b>МАССОВАЯ РАССЫЛКА</b>\n\n"
+            f"Получателей: {user_count} пользователей\n\n"
+            f"Отправь сообщение, которое хочешь разослать всем.\n"
+            f"Сообщение может содержать:\n"
+            f"  • Текст\n"
+            f"  • Ссылки\n"
+            f"  • Форматирование (жирный, курсив)\n\n"
+            f"<code>/cancel</code> - Отменить рассылку"
+        )
+
+        back_button = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Отмена", callback_data="admin:back")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=back_button)
+        await state.set_state(MailingStates.waiting_for_message)
+        await callback.answer()
+        logger.info(f"Mailing started by admin {callback.from_user.id}")
+
+    elif action == "post":
+        # Post to channel
+        if not settings.CHANNEL_ID:
+            await callback.answer("❌ CHANNEL_ID не настроен", show_alert=True)
+            return
+
+        # Ask which period
+        text = (
+            "📣 <b>ПУБЛИКАЦИЯ В КАНАЛ</b>\n\n"
+            "Выбери период для топа:"
+        )
+
+        period_buttons = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📅 День", callback_data="admin:post_day"),
+                InlineKeyboardButton(text="📆 Неделя", callback_data="admin:post_week")
+            ],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=period_buttons)
+        await callback.answer()
+
+    elif action == "post_day":
+        # Post daily top
+        await callback.answer("📤 Публикую топ дня...")
+        try:
+            await channel_poster.post_daily_top()
+            await callback.answer("✅ Топ дня опубликован", show_alert=True)
+            logger.info(f"Daily top posted by admin {callback.from_user.id}")
+        except Exception as e:
+            await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
+            logger.error(f"Daily top post error: {e}")
+
+    elif action == "post_week":
+        # Post weekly top
+        await callback.answer("📤 Публикую топ недели...")
+        try:
+            await channel_poster.post_weekly_top()
+            await callback.answer("✅ Топ недели опубликован", show_alert=True)
+            logger.info(f"Weekly top posted by admin {callback.from_user.id}")
+        except Exception as e:
+            await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
+            logger.error(f"Weekly top post error: {e}")
+
+    elif action == "update_ytdlp":
+        # Update yt-dlp
+        await callback.message.edit_text("⏳ Обновляю yt-dlp...\n\nПожалуйста, подожди.")
+        await callback.answer()
+
+        try:
+            import subprocess
+            import sys
+
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"],
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+
+            if result.returncode == 0:
+                version_result = subprocess.run(
+                    [sys.executable, "-c", "import yt_dlp; print(yt_dlp.version.__version__)"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+
+                version = version_result.stdout.strip() if version_result.returncode == 0 else "unknown"
+
+                text = (
+                    f"✅ <b>yt-dlp успешно обновлён</b>\n\n"
+                    f"📦 Версия: <code>{version}</code>\n\n"
+                    f"Теперь попробуй скачать проблемный трек заново."
+                )
+
+                back_button = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")]
+                ])
+
+                await callback.message.edit_text(text, reply_markup=back_button)
+                logger.info(f"yt-dlp updated to version {version} by admin {callback.from_user.id}")
+            else:
+                await callback.message.edit_text(
+                    f"❌ <b>Ошибка обновления</b>\n\n"
+                    f"<code>{result.stderr[:500]}</code>"
+                )
+                logger.error(f"yt-dlp update failed: {result.stderr}")
+
+        except subprocess.TimeoutExpired:
+            await callback.message.edit_text("❌ Превышено время ожидания обновления (120 сек)")
+            logger.error("yt-dlp update timeout")
+        except Exception as e:
+            await callback.message.edit_text(f"❌ Ошибка: {e}")
+            logger.error(f"yt-dlp update error: {e}")
+
+    elif action == "help":
+        # Show help
+        text = (
+            "🔐 <b>СПРАВКА ПО АДМИН-КОМАНДАМ</b>\n\n"
+            "<b>/admin</b> - Меню администратора\n\n"
+            "<b>/stats</b> - Статистика бота\n"
+            "<b>/users</b> - Информация о пользователях\n"
+            "<b>/top</b> - ТОП 10 пользователей\n\n"
+            "<b>/user_stats &lt;ID&gt;</b> - Статистика пользователя:\n"
+            "  /user_stats 123456789\n\n"
+            "<b>/setpremium &lt;ID&gt; [дни]</b> - Выдать премиум:\n"
+            "  /setpremium 123456789 - 30 дней\n"
+            "  /setpremium 123456789 90 - на 90 дней\n"
+            "  /setpremium 123456789 0 - забрать премиум\n\n"
+            "<b>/mailing</b> - Массовая рассылка\n"
+            "<b>/web_admin</b> - Web-дашборд\n"
+            "<b>/post_top</b> - Публикация в канал\n"
+            "<b>/update_ytdlp</b> - Обновить yt-dlp\n"
+        )
+
+        back_button = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin:back")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=back_button)
+        await callback.answer()
+
+    elif action == "back":
+        # Return to main admin menu
+        text = (
+            "🔐 <b>АДМИН-ПАНЕЛЬ</b>\n\n"
+            "Выбери действие из меню ниже:\n\n"
+            "<i>Также доступны команды:</i>\n"
+            "• <code>/user_stats ID</code> - статистика пользователя\n"
+            "• <code>/setpremium ID дни</code> - выдать премиум"
+        )
+
+        await callback.message.edit_text(text, reply_markup=create_admin_keyboard())
+        await callback.answer()
+        # Clear state if any
+        await state.clear()

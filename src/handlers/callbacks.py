@@ -337,28 +337,70 @@ async def track_callback_handler(callback: CallbackQuery):
                 f"Download failed for user {user_id}, track {track.id}: {e}"
             )
             error_msg = str(e)
-            
+
             # More detailed error messages
             if "too large" in error_msg.lower():
                 error_text = (
                     "❌ <b>Файл слишком большой</b>\n\n"
+                    f"🎵 <b>{track.title}</b>\n"
+                    f"👤 <i>{track.artist}</i>\n\n"
                     f"Максимальный размер: 50 MB\n"
-                    f"Попробуй более короткий трек"
+                    f"Попробуй более короткий трек из списка ниже"
                 )
-            elif "not available" in error_msg.lower() or "unavailable" in error_msg.lower():
+            elif "unavailable" in error_msg.lower() or "deleted" in error_msg.lower():
                 error_text = (
                     "❌ <b>Трек недоступен</b>\n\n"
-                    f"Видео могло быть удалено или закрыто.\n"
-                    f"Попробуй другой трек"
+                    f"🎵 <b>{track.title}</b>\n"
+                    f"👤 <i>{track.artist}</i>\n\n"
+                    f"Видео удалено или закрыто для доступа.\n"
+                    f"Попробуй другой трек из списка ниже"
+                )
+            elif "private" in error_msg.lower():
+                error_text = (
+                    "❌ <b>Видео скрыто</b>\n\n"
+                    f"🎵 <b>{track.title}</b>\n"
+                    f"👤 <i>{track.artist}</i>\n\n"
+                    f"Это приватное видео.\n"
+                    f"Попробуй другой трек из списка ниже"
+                )
+            elif "geo" in error_msg.lower() or "region" in error_msg.lower():
+                error_text = (
+                    "❌ <b>Региональные ограничения</b>\n\n"
+                    f"🎵 <b>{track.title}</b>\n"
+                    f"👤 <i>{track.artist}</i>\n\n"
+                    f"Видео недоступно в твоем регионе.\n"
+                    f"Попробуй другой трек из списка ниже"
+                )
+            elif "copyright" in error_msg.lower():
+                error_text = (
+                    "❌ <b>Защита авторских прав</b>\n\n"
+                    f"🎵 <b>{track.title}</b>\n"
+                    f"👤 <i>{track.artist}</i>\n\n"
+                    f"Видео заблокировано правообладателем.\n"
+                    f"Попробуй другой трек из списка ниже"
                 )
             else:
                 error_text = (
                     "❌ <b>Ошибка при скачивании</b>\n\n"
-                    f"Трек может быть недоступен.\n"
-                    f"Попробуй другой трек"
+                    f"🎵 <b>{track.title}</b>\n"
+                    f"👤 <i>{track.artist}</i>\n\n"
+                    f"Не удалось скачать трек.\n"
+                    f"Попробуй другой трек из списка ниже"
                 )
-            
-            await callback.message.edit_text(error_text)
+
+            # Show search results again with error message
+            cache_key = f"search:{user_id}"
+            tracks = cache.get(cache_key)
+
+            if tracks:
+                error_text += f"\n\n<i>Или выполни новый поиск командой /start</i>"
+                # Get query for keyboard
+                query = cache.get(f"query:{user_id}")
+                keyboard = create_track_keyboard(tracks[:10], page=0, total_tracks=len(tracks))
+                await callback.message.edit_text(error_text, reply_markup=keyboard)
+            else:
+                await callback.message.edit_text(error_text)
+
             await callback.answer()
             return
 

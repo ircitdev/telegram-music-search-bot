@@ -87,8 +87,20 @@ class YouTubeDownloader:
                 return mp3_file
 
         except Exception as e:
-            logger.error(f"Download sync error: {e}")
-            raise
+            error_msg = str(e)
+            logger.error(f"Download sync error for {video_id}: {error_msg}", exc_info=True)
+
+            # Re-raise with more specific error info
+            if "unavailable" in error_msg.lower() or "not available" in error_msg.lower():
+                raise Exception("Video unavailable or deleted")
+            elif "private" in error_msg.lower():
+                raise Exception("Video is private")
+            elif "copyright" in error_msg.lower():
+                raise Exception("Copyright restriction")
+            elif "geo" in error_msg.lower() or "region" in error_msg.lower():
+                raise Exception("Geo-restricted content")
+            else:
+                raise
 
 
 # Singleton instance
