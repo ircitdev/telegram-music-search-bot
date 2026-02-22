@@ -26,7 +26,7 @@ async def get_recommendations(user_id: int, limit: int = 10) -> list:
 
     if not history:
         # No history - return global top tracks
-        return await stats_repo.get_top_tracks(limit=limit, period="week")
+        return await stats_repo.get_top_tracks(limit=limit, period="all")
 
     # Count artists from user's history
     artist_counts = {}
@@ -47,7 +47,7 @@ async def get_recommendations(user_id: int, limit: int = 10) -> list:
 
     if not top_artists:
         # Fallback to global top
-        return await stats_repo.get_top_tracks(limit=limit, period="week")
+        return await stats_repo.get_top_tracks(limit=limit, period="all")
 
     # Get popular tracks from similar artists
     recommendations = []
@@ -71,7 +71,7 @@ async def get_recommendations(user_id: int, limit: int = 10) -> list:
 
     # If not enough recommendations, add popular tracks
     if len(recommendations) < limit:
-        top_tracks = await stats_repo.get_top_tracks(limit=limit * 2, period="week")
+        top_tracks = await stats_repo.get_top_tracks(limit=limit * 2, period="all")
 
         for track in top_tracks:
             if track['track_id'] not in user_track_ids:
