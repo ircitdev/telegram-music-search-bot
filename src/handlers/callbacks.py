@@ -85,7 +85,7 @@ async def download_and_send_track(callback: CallbackQuery, track):
         f"{track.artist} - {track.title}"
     )
 
-    # Show loading message
+    # Show loading message (as separate message, not editing original)
     loading_text = (
         f"⏳ <b>Загрузка трека...</b>\n\n"
         f"🎵 <b>{track.title}</b>\n"
@@ -94,11 +94,8 @@ async def download_and_send_track(callback: CallbackQuery, track):
         f"<code>[████░░░░░░░░░░░░░░] 20%</code>"
     )
 
-    # Edit or send new message
-    try:
-        await callback.message.edit_text(loading_text)
-    except:
-        await callback.message.answer(loading_text)
+    # Send new message (don't edit original track list)
+    loading_msg = await callback.message.answer(loading_text)
 
     # Download
     try:
@@ -159,25 +156,14 @@ async def download_and_send_track(callback: CallbackQuery, track):
                 f"Попробуй другой трек из списка ниже"
             )
 
-        # Show search results again with error message
-        cache_key = f"search:{user_id}"
-        tracks = cache.get(cache_key)
+        # Delete loading message
+        try:
+            await loading_msg.delete()
+        except:
+            pass
 
-        if tracks:
-            error_text += f"\n\n<i>Или выполни новый поиск командой /start</i>"
-            # Get query for keyboard
-            query = cache.get(f"query:{user_id}")
-            keyboard = create_track_keyboard(tracks[:10], page=0, total_tracks=len(tracks))
-            try:
-                await callback.message.edit_text(error_text, reply_markup=keyboard)
-            except:
-                await callback.message.answer(error_text, reply_markup=keyboard)
-        else:
-            try:
-                await callback.message.edit_text(error_text)
-            except:
-                await callback.message.answer(error_text)
-
+        # Send error as new message (original track list stays visible)
+        await callback.message.answer(error_text)
         await callback.answer()
         return
 
@@ -220,9 +206,9 @@ async def download_and_send_track(callback: CallbackQuery, track):
             await user_repo.use_bonus_download(user_id)
             logger.info(f"Used bonus download for user {user_id}")
 
-        # Delete loading message
+        # Delete loading message (not the original track list)
         try:
-            await callback.message.delete()
+            await loading_msg.delete()
         except:
             pass
 
@@ -364,7 +350,7 @@ async def track_callback_handler(callback: CallbackQuery):
             f"{track.artist} - {track.title}"
         )
 
-        # Show loading message with progress indicator
+        # Show loading message as new message (don't edit track list)
         loading_text = (
             f"⏳ <b>Загрузка трека...</b>\n\n"
             f"🎵 <b>{track.title}</b>\n"
@@ -372,7 +358,7 @@ async def track_callback_handler(callback: CallbackQuery):
             f"⏱️ <code>{track.formatted_duration}</code>\n\n"
             f"<code>[████░░░░░░░░░░░░░░] 20%</code>"
         )
-        await callback.message.edit_text(loading_text)
+        loading_msg = await callback.message.answer(loading_text)
 
         # Download
         try:
@@ -433,19 +419,14 @@ async def track_callback_handler(callback: CallbackQuery):
                     f"Попробуй другой трек из списка ниже"
                 )
 
-            # Show search results again with error message
-            cache_key = f"search:{user_id}"
-            tracks = cache.get(cache_key)
+            # Delete loading message
+            try:
+                await loading_msg.delete()
+            except:
+                pass
 
-            if tracks:
-                error_text += f"\n\n<i>Или выполни новый поиск командой /start</i>"
-                # Get query for keyboard
-                query = cache.get(f"query:{user_id}")
-                keyboard = create_track_keyboard(tracks[:10], page=0, total_tracks=len(tracks))
-                await callback.message.edit_text(error_text, reply_markup=keyboard)
-            else:
-                await callback.message.edit_text(error_text)
-
+            # Send error as new message (original track list stays visible)
+            await callback.message.answer(error_text)
             await callback.answer()
             return
 
@@ -484,9 +465,9 @@ async def track_callback_handler(callback: CallbackQuery):
             else:
                 await download_repo.increment_daily_count(user_id)
 
-            # Delete "loading..." message
+            # Delete loading message (not the original track list)
             try:
-                await callback.message.delete()
+                await loading_msg.delete()
             except Exception as e:
                 logger.debug(f"Could not delete loading message: {e}")
 
