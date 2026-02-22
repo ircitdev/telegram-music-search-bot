@@ -100,6 +100,27 @@ class DownloadRepository:
         """, (f"-{days}",))
         await db.commit()
 
+    async def get_user_top_artists(self, user_id: int, limit: int = 5) -> List[Dict[str, Any]]:
+        """Get user's top artists by download count."""
+        rows = await db.fetchall("""
+            SELECT artist, COUNT(*) as count
+            FROM downloads
+            WHERE user_id = ? AND artist IS NOT NULL AND artist != 'Unknown'
+            GROUP BY artist
+            ORDER BY count DESC
+            LIMIT ?
+        """, (user_id, limit))
+        return [dict(row) for row in rows]
+
+    async def get_user_total_duration(self, user_id: int) -> int:
+        """Get total listening time in seconds."""
+        row = await db.fetchone("""
+            SELECT SUM(duration) as total
+            FROM downloads
+            WHERE user_id = ? AND duration IS NOT NULL
+        """, (user_id,))
+        return row["total"] if row and row["total"] else 0
+
 
 # Global instance
 download_repo = DownloadRepository()
