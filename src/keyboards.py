@@ -77,6 +77,25 @@ def create_track_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+def create_video_keyboard(track_id: str) -> InlineKeyboardMarkup:
+    """
+    Create keyboard with video link button.
+
+    Args:
+        track_id: YouTube video ID
+
+    Returns:
+        InlineKeyboardMarkup with "Watch video" button
+    """
+    buttons = [[
+        InlineKeyboardButton(
+            text="🎬 Смотреть видео",
+            url=f"https://youtube.com/watch?v={track_id}"
+        )
+    ]]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 def create_country_keyboard() -> InlineKeyboardMarkup:
     """
     Create inline keyboard for country selection in TOP handler.

@@ -4,16 +4,23 @@ import asyncio
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from src.downloaders.youtube_dl import youtube_downloader
-from src.keyboards import create_track_keyboard
+from src.keyboards import create_track_keyboard, create_video_keyboard
 from src.utils.cache import cache
 from src.utils.logger import logger
 from src.config import settings
 from src.database.repositories import user_repo, download_repo, stats_repo
 
 
-def create_after_download_keyboard(query: str = None) -> InlineKeyboardMarkup:
+def create_after_download_keyboard(query: str = None, track_id: str = None) -> InlineKeyboardMarkup:
     """Create keyboard with actions after download."""
     buttons = []
+
+    # Video button (first priority)
+    if track_id:
+        buttons.append([InlineKeyboardButton(
+            text="🎬 Смотреть видео",
+            url=f"https://youtube.com/watch?v={track_id}"
+        )])
 
     # Search again button
     if query:
@@ -191,7 +198,7 @@ async def download_and_send_track(callback: CallbackQuery, track):
             title=track.title,
             duration=track.duration,
             caption="🎵 Любая музыка за секунды @UspMusicFinder_bot",
-            reply_markup=create_after_download_keyboard(query)
+            reply_markup=create_after_download_keyboard(query, track.id)
         )
 
         # Record download in database
@@ -463,7 +470,7 @@ async def track_callback_handler(callback: CallbackQuery):
                 title=track.title,
                 duration=track.duration,
                 caption="🎵 Любая музыка за секунды @UspMusicFinder_bot",
-                reply_markup=create_after_download_keyboard(query)
+                reply_markup=create_after_download_keyboard(query, track.id)
             )
 
             # Record download in database

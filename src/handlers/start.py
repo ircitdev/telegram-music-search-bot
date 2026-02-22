@@ -137,6 +137,7 @@ async def auto_search_and_download(message: Message, query: str, source: str = "
 
         # Keyboard for after download
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🎬 Смотреть видео", url=f"https://youtube.com/watch?v={track.id}")],
             [InlineKeyboardButton(text="🔍 Искать ещё", callback_data="search_again")],
             [
                 InlineKeyboardButton(text="🏆 Топ треков", callback_data="quick:top"),
