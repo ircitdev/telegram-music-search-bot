@@ -65,9 +65,9 @@ class StatsRepository:
                     artist,
                     duration,
                     COUNT(*) as download_count,
-                    MAX(created_at) as last_downloaded
+                    MAX(downloaded_at) as last_downloaded
                 FROM downloads
-                WHERE created_at > {date_filter}
+                WHERE downloaded_at > {date_filter}
                 GROUP BY track_id
                 ORDER BY download_count DESC
                 LIMIT ?
