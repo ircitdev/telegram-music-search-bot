@@ -91,7 +91,9 @@ class YouTubeDownloader:
             logger.error(f"Download sync error for {video_id}: {error_msg}", exc_info=True)
 
             # Re-raise with more specific error info
-            if "unavailable" in error_msg.lower() or "not available" in error_msg.lower():
+            if "403" in error_msg or "forbidden" in error_msg.lower():
+                raise Exception("YouTube blocked access. Try updating yt-dlp or use /update_ytdlp")
+            elif "unavailable" in error_msg.lower() or "not available" in error_msg.lower():
                 raise Exception("Video unavailable or deleted")
             elif "private" in error_msg.lower():
                 raise Exception("Video is private")

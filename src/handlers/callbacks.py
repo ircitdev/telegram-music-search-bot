@@ -107,7 +107,16 @@ async def download_and_send_track(callback: CallbackQuery, track):
         error_msg = str(e)
 
         # More detailed error messages
-        if "too large" in error_msg.lower():
+        if "403" in error_msg or "forbidden" in error_msg.lower() or "blocked access" in error_msg.lower():
+            error_text = (
+                "❌ <b>YouTube заблокировал доступ</b>\n\n"
+                f"🎵 <b>{track.title}</b>\n"
+                f"👤 <i>{track.artist}</i>\n\n"
+                f"Нужно обновить yt-dlp.\n"
+                f"Админ может выполнить: /update_ytdlp\n\n"
+                f"Попробуй другой трек из списка ниже"
+            )
+        elif "too large" in error_msg.lower():
             error_text = (
                 "❌ <b>Файл слишком большой</b>\n\n"
                 f"🎵 <b>{track.title}</b>\n"
@@ -370,7 +379,16 @@ async def track_callback_handler(callback: CallbackQuery):
             error_msg = str(e)
 
             # More detailed error messages
-            if "too large" in error_msg.lower():
+            if "403" in error_msg or "forbidden" in error_msg.lower() or "blocked access" in error_msg.lower():
+                error_text = (
+                    "❌ <b>YouTube заблокировал доступ</b>\n\n"
+                    f"🎵 <b>{track.title}</b>\n"
+                    f"👤 <i>{track.artist}</i>\n\n"
+                    f"Нужно обновить yt-dlp.\n"
+                    f"Админ может выполнить: /update_ytdlp\n\n"
+                    f"Попробуй другой трек из списка ниже"
+                )
+            elif "too large" in error_msg.lower():
                 error_text = (
                     "❌ <b>Файл слишком большой</b>\n\n"
                     f"🎵 <b>{track.title}</b>\n"
